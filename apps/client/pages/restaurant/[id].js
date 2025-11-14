@@ -23,17 +23,39 @@ export default function RestaurantPage({ params }) {
     load();
   }, [id]);
 
+  // hero image selection: try a large photo first, fall back to existing SVG
+  const [heroSrc, setHeroSrc] = useState('/restaurants/windmill-creek/hero-image.jpg');
+  useEffect(() => {
+    // probe for the large hero jpg; fallback to svg if not present
+    const img = new Image();
+    img.onload = () => setHeroSrc('/restaurants/windmill-creek/hero-image.jpg');
+    img.onerror = () => setHeroSrc('/restaurants/windmill-creek/hero.svg');
+    img.src = '/restaurants/windmill-creek/hero-image.jpg';
+  }, []);
+
   if (!restaurant) return <div style={{ padding: 24 }}>Loading...</div>;
 
   return (
     <div style={{ padding: 28, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto' }}>
       <div style={{ display: 'flex', gap: 24 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ borderRadius: 12, overflow: 'hidden' }}>
-            <img src="/restaurants/windmill-creek/hero.svg" alt="hero" style={{ width: '100%', height: 300, objectFit: 'cover' }} />
+          <div style={{ borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+            <div style={{
+              width: '100%',
+              height: 360,
+              backgroundImage: `url(${heroSrc})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <div style={{ padding: '28px 40px', maxWidth: 720, color: '#fff', textShadow: '0 6px 18px rgba(0,0,0,0.45)' }}>
+                <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, opacity: 0.95 }}>{restaurant.short_name}</div>
+                <h1 style={{ margin: '8px 0 8px', fontSize: 44, lineHeight: 1.02 }}>{restaurant.name}</h1>
+                <p style={{ fontSize: 16, maxWidth: 560, marginTop: 6 }}>{restaurant.description}</p>
+              </div>
+            </div>
           </div>
-          <h1 style={{ marginTop: 16 }}>{restaurant.name}</h1>
-          <p style={{ color: '#555' }}>{restaurant.description}</p>
         </div>
         <aside style={{ width: 300 }}>
           <img src="/restaurants/windmill-creek/avatar.svg" alt="avatar" style={{ width: 120, height: 120, borderRadius: 8, boxShadow: '0 8px 20px rgba(0,0,0,0.08)' }} />
