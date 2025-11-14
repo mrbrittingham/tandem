@@ -1,0 +1,13 @@
+{
+  "name": "tandem",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "bootstrap": "echo \"Run per-app install commands (see README)\"",
+    "start": "echo \"Start a specific app: cd apps/admin && npm run dev\""
+  }
+}
