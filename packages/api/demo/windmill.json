@@ -1,0 +1,35 @@
+{
+  "restaurant": {
+    "id": "windmill-creek",
+    "name": "Windmill Creek Winery & Farm Kitchen",
+    "short_name": "Windmill Creek",
+    "description": "Winery & farm kitchen located in Berlin, MD — seasonal menus, events, and tastings.",
+    "phone": "410-251-6122",
+    "website": "https://windmillcreekvineyard.com/",
+    "hours": "Daily: 12 PM - 8:30 PM (seasonal)",
+    "address": "11206 Worcester Hwy, Berlin, MD"
+  },
+  "faqs": [
+    { "id": 1, "question": "Do you take reservations?", "answer": "Yes — we accept reservations for dining and special events. Use our reservation form or call us." },
+    { "id": 2, "question": "Do you offer outdoor seating?", "answer": "Yes — we have patios and outdoor seating when weather permits." },
+    { "id": 3, "question": "Is there a tasting room?", "answer": "Yes — we have a winery tasting room and offer flights and bottle sales." }
+  ],
+  "menus": [
+    {
+      "id": "lunch",
+      "title": "Lunch",
+      "items": [
+        { "id": "beast-burger", "name": "The Beast Burger", "price": 22, "description": "Wagyu, elk, bison, and wild boar blend with cranberry Stilton..." },
+        { "id": "turkey-brie", "name": "Turkey & Brie Sandwich", "price": 16 }
+      ]
+    },
+    {
+      "id": "starters",
+      "title": "Lite Fare / Starters",
+      "items": [
+        { "id": "bacon-scallops", "name": "Bacon Wrapped Scallops", "price": 20 },
+        { "id": "fried-oysters", "name": "Fried Oysters", "price": 18 }
+      ]
+    }
+  ]
+}
