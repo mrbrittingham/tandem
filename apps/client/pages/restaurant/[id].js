@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ChatWidget } from '../../../../packages/ui';
 
 export default function RestaurantPage({ params }) {
   const id = params?.id || 'windmill-creek';
@@ -63,4 +64,10 @@ export default function RestaurantPage({ params }) {
       </div>
     </div>
   );
+}
+
+// Render the ChatWidget for this restaurant
+export function ChatWidgetWrapper({ params }) {
+  const id = params?.id || 'windmill-creek';
+  return <ChatWidget restaurantId={id} />;
 }

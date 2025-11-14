@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function ChatWidget() {
+export default function ChatWidget({ restaurantId } = {}) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -34,10 +34,12 @@ export default function ChatWidget() {
     setTyping(true);
     try {
       const url = API_BASE ? `${API_BASE}/api/chat` : '/api/chat';
+      const payload = { message: content };
+      if (restaurantId) payload.restaurant_id = restaurantId;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       const reply = { role: 'assistant', text: json.reply || 'No reply', time: new Date().toISOString() };

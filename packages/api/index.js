@@ -54,12 +54,15 @@ const supabaseFetch = async (pathSuffix, opts = {}, useServiceRole = false) => {
   try { return JSON.parse(text); } catch { return text; }
 };
 
-const openaiChat = async (message) => {
+const openaiChat = async ({ message, system = null }) => {
   if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured');
   const url = 'https://api.openai.com/v1/chat/completions';
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  messages.push({ role: 'user', content: message });
   const body = {
     model: 'gpt-3.5-turbo',
-    messages: [{ role: 'user', content: message }],
+    messages,
     max_tokens: 512,
     temperature: 0.7
   };
@@ -170,7 +173,36 @@ const requestHandler = async (req, res) => {
         return;
       }
       try {
-        const reply = await openaiChat(body.message);
+        let system = null;
+        if (body.restaurant_id) {
+          // fetch demo restaurant context where available
+          try {
+            const demoPath = path.join(__dirname, 'demo', 'windmill.json');
+            const txt = await fsReadFile(demoPath, 'utf8');
+            const json = JSON.parse(txt);
+            if (json.restaurant) {
+              system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+            }
+            if (json.menus) {
+              system += '\nMenu items:\n';
+              for (const menu of json.menus) {
+                system += `-- ${menu.title}: `;
+                const names = menu.items.map(i => `${i.name}${i.price ? ` ($${i.price})` : ''}`);
+                system += names.join(', ') + '\n';
+              }
+            }
+            if (json.faqs) {
+              system += '\nFAQs:\n';
+              for (const f of json.faqs) {
+                system += `Q: ${f.question} A: ${f.answer}\n`;
+              }
+            }
+          } catch (e) {
+            // ignore demo read errors
+          }
+        }
+
+        const reply = await openaiChat({ message: body.message, system });
         sendJson(res, 200, { reply });
       } catch (e) {
         sendJson(res, 502, { error: e.message || 'OpenAI request failed' });
