@@ -27,22 +27,35 @@ export default function RestaurantPage({ params }) {
 
   return (
     <div style={{ padding: 28, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto' }}>
-      <h1>{restaurant.name}</h1>
-      <p style={{ color: '#555' }}>{restaurant.description}</p>
+      <div style={{ display: 'flex', gap: 24 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ borderRadius: 12, overflow: 'hidden' }}>
+            <img src="/restaurants/windmill-creek/hero.svg" alt="hero" style={{ width: '100%', height: 300, objectFit: 'cover' }} />
+          </div>
+          <h1 style={{ marginTop: 16 }}>{restaurant.name}</h1>
+          <p style={{ color: '#555' }}>{restaurant.description}</p>
+        </div>
+        <aside style={{ width: 300 }}>
+          <img src="/restaurants/windmill-creek/avatar.svg" alt="avatar" style={{ width: 120, height: 120, borderRadius: 8, boxShadow: '0 8px 20px rgba(0,0,0,0.08)' }} />
+        </aside>
+      </div>
       <div style={{ display: 'flex', gap: 24, marginTop: 20 }}>
         <div style={{ flex: 1 }}>
           <h2>Menus</h2>
           {menus.map((menu) => (
             <div key={menu.id} style={{ marginBottom: 12 }}>
               <h3 style={{ marginBottom: 6 }}>{menu.title}</h3>
-              <ul>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <img src="/restaurants/windmill-creek/menu-placeholder.svg" alt="menu" style={{ width: 140, height: 90, borderRadius: 8 }} />
+                <ul>
                 {menu.items.map((it) => (
                   <li key={it.id} style={{ marginBottom: 6 }}>
                     <strong>{it.name}</strong>{it.price ? ` — $${it.price}` : ''}
                     {it.description ? <div style={{ color: '#666' }}>{it.description}</div> : null}
                   </li>
                 ))}
-              </ul>
+                </ul>
+              </div>
             </div>
           ))}
         </div>
@@ -62,6 +75,8 @@ export default function RestaurantPage({ params }) {
           </div>
         </aside>
       </div>
+      {/* Embedded chat widget specific to this restaurant */}
+      <ChatWidget restaurantId={restaurant.id || 'windmill-creek'} />
     </div>
   );
 }
