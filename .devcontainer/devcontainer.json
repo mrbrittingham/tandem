@@ -5,12 +5,16 @@
   "forwardPorts": [3000, 3001, 4000],
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "postCreateCommand": "npm install",
+  "postStartCommand": "npm run dev",
   "customizations": {
     "vscode": {
       "settings": {
         "editor.formatOnSave": true
       },
-      "extensions": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint"
+      ]
     }
   }
 }
