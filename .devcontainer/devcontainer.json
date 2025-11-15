@@ -2,6 +2,7 @@
   "name": "Tandem Dev",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
   "workspaceFolder": "/workspace",
+  "forwardPorts": [3000, 3001, 4000],
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "postCreateCommand": "npm install",
   "customizations": {

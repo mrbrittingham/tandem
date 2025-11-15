@@ -8,6 +8,13 @@
   ],
   "scripts": {
     "bootstrap": "echo \"Run per-app install commands (see README)\"",
-    "start": "echo \"Start a specific app: cd apps/admin && npm run dev\""
+    "start": "echo \"Start a specific app: cd apps/admin && npm run dev\"",
+    "dev:admin": "npm --prefix ./apps/admin run dev",
+    "dev:client": "npm --prefix ./apps/client run dev",
+    "dev:api": "npm --prefix ./packages/api run dev",
+    "dev": "concurrently \"npm --prefix ./apps/admin run dev\" \"npm --prefix ./apps/client run dev\" \"npm --prefix ./packages/api run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
   }
 }
