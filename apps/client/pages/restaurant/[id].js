@@ -4,8 +4,7 @@ import { ChatWidget } from "../../../../packages/ui";
 export default function RestaurantPage({ params }) {
   const id = params?.id || "windmill-creek";
   const [restaurant, setRestaurant] = useState(null);
-  const [menus, setMenus] = useState([]);
-  const [faqs, setFaqs] = useState([]);
+  // menus/faqs are unused in this simplified demo page
   const [heroSrc, setHeroSrc] = useState(`/restaurants/${id}/hero-image.jpg`);
   const [loading, setLoading] = useState(true);
 
@@ -19,30 +18,20 @@ export default function RestaurantPage({ params }) {
             : "";
         const base = API_BASE || "";
 
-        const [rRes, rMenus, rFaqs] = await Promise.all([
-          fetch(`${base}/api/demo/restaurant`),
-          fetch(`${base}/api/demo/menus`),
-          fetch(`${base}/api/demo/faqs`),
-        ]);
-
-        if (!rRes.ok || !rMenus.ok || !rFaqs.ok)
-          throw new Error("Demo endpoints unavailable");
-
+        // Only load the demo restaurant payload used by this page
+        const rRes = await fetch(`${base}/api/demo/restaurant`);
+        if (!rRes.ok) throw new Error("Demo endpoint unavailable");
         const restaurantJson = await rRes.json();
-        const menusJson = await rMenus.json();
-        const faqsJson = await rFaqs.json();
-
         if (!mounted) return;
         setRestaurant(restaurantJson);
-        setMenus(menusJson);
-        setFaqs(faqsJson);
 
         // probe for hero-image.jpg in public folder; fall back to svg if missing
         try {
           const imgResp = await fetch(`/restaurants/${id}/hero-image.jpg`);
           if (imgResp.ok) setHeroSrc(`/restaurants/${id}/hero-image.jpg`);
           else setHeroSrc(`/restaurants/${id}/hero.svg`);
-        } catch (e) {
+        } catch {
+          // ignore failures probing the public image; fall back to svg
           setHeroSrc(`/restaurants/${id}/hero.svg`);
         }
 

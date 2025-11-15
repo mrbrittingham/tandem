@@ -221,7 +221,7 @@ const requestHandler = async (req, res) => {
                 system += `Q: ${f.question} A: ${f.answer}\n`;
               }
             }
-          } catch (e) {
+          } catch {
             // ignore demo read errors
           }
         }

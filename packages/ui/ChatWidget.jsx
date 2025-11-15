@@ -23,10 +23,9 @@ export default function ChatWidget({ restaurantId } = {}) {
   };
 
   const scrollToBottom = () => {
-    try {
-      if (msgsRef.current)
-        msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
-    } catch {}
+    // If the element exists, update scroll position. Avoid try/catch with an empty block.
+    if (msgsRef.current)
+      msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
   };
 
   useEffect(() => {
@@ -57,7 +56,7 @@ export default function ChatWidget({ restaurantId } = {}) {
       };
       setMessages((m) => [...m, reply]);
       if (!open) setUnreadCount((n) => n + 1);
-    } catch (e) {
+    } catch {
       const err = {
         role: "assistant",
         text: "Error sending message",
