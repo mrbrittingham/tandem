@@ -6,7 +6,7 @@ export default function ChatWidget({ restaurantId } = {}) {
   const [messages, setMessages] = useState([]);
   const [typing, setTyping] = useState(false);
   const msgsRef = useRef(null);
-  const [unreadCount, setUnreadCount] = useState(1);
+  const [unreadCount, setUnreadCount] = useState(0); // start at 0
 
   const API_BASE =
     typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_URL
@@ -23,7 +23,7 @@ export default function ChatWidget({ restaurantId } = {}) {
   };
 
   const scrollToBottom = () => {
-    // If the element exists, update scroll position. Avoid try/catch with an empty block.
+    // If the element exists, update scroll position.
     if (msgsRef.current)
       msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
   };
@@ -35,25 +35,31 @@ export default function ChatWidget({ restaurantId } = {}) {
   const send = async (text) => {
     const content = typeof text === "string" ? text : input;
     if (!content) return;
+
     const msg = { role: "user", text: content, time: new Date().toISOString() };
     setMessages((m) => [...m, msg]);
     setInput("");
     setTyping(true);
+
     try {
       const url = API_BASE ? `${API_BASE}/api/chat` : "/api/chat";
       const payload = { message: content };
       if (restaurantId) payload.restaurant_id = restaurantId;
+
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       const json = await res.json();
+
       const reply = {
         role: "assistant",
-        text: json.reply || "No reply",
+        text: json?.reply ?? "No reply",
         time: new Date().toISOString(),
       };
+
       setMessages((m) => [...m, reply]);
       if (!open) setUnreadCount((n) => n + 1);
     } catch {
@@ -77,14 +83,21 @@ export default function ChatWidget({ restaurantId } = {}) {
 
   const quickReplies = ["Show menu", "Make a reservation", "Hours", "Contact"];
 
+  // Derived values used in JSX to avoid very long inline expressions
+  const FONT_FAMILY =
+    "Inter, system-ui, -apple-system, \"Segoe UI\", Roboto, 'Helvetica Neue', Arial";
+  const avatarDisplay = open ? "none" : "block";
+  const panelTransform = open
+    ? "translateY(0) scale(1)"
+    : "translateY(8px) scale(0.98)";
+
   const styles = {
     root: {
       position: "fixed",
       right: 20,
       bottom: 20,
       zIndex: 9999,
-      fontFamily:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      fontFamily: FONT_FAMILY,
     },
     toggle: {
       padding: "8px 12px",
@@ -206,27 +219,25 @@ export default function ChatWidget({ restaurantId } = {}) {
 
   return (
     <div style={styles.root}>
-      {/* Clickable avatar trigger (hidden when chat is open) */}
+      {/* Avatar trigger */}
       <div
         style={{
           position: "fixed",
           right: 12,
           bottom: 12,
           zIndex: 998,
-          display: open ? "none" : "block",
+          display: avatarDisplay,
         }}
       >
         <div style={{ position: "relative", width: 80, height: 80 }}>
           <button
-            onClick={() => {
+            onClick={() =>
               setOpen((v) => {
                 const next = !v;
-                if (next) {
-                  setUnreadCount(0);
-                }
+                if (next) setUnreadCount(0);
                 return next;
-              });
-            }}
+              })
+            }
             aria-label="Open chat"
             style={{ all: "unset", cursor: "pointer", display: "inline-block" }}
           >
@@ -244,7 +255,6 @@ export default function ChatWidget({ restaurantId } = {}) {
             />
           </button>
 
-          {/* numeric notification badge overlapping top-right of avatar */}
           {unreadCount > 0 && (
             <div
               style={{
@@ -270,12 +280,12 @@ export default function ChatWidget({ restaurantId } = {}) {
           )}
         </div>
       </div>
+
+      {/* Panel */}
       <div
         style={{
           ...styles.panel,
-          transform: open
-            ? "translateY(0) scale(1)"
-            : "translateY(8px) scale(0.98)",
+          transform: panelTransform,
           opacity: open ? 1 : 0,
           pointerEvents: open ? "auto" : "none",
         }}
@@ -290,49 +300,51 @@ export default function ChatWidget({ restaurantId } = {}) {
             —
           </button>
         </div>
+
         <div ref={msgsRef} style={styles.messages}>
           {messages.length === 0 && (
             <div style={{ color: "#667085" }}>
               Hello — ask about the menu, reservations, or hours.
             </div>
           )}
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              style={{
-                ...styles.msgRow,
-                justifyContent: m.role === "user" ? "flex-end" : "flex-start",
-              }}
-            >
-              {m.role === "assistant" && (
-                <img
-                  src="/tandem-widget.jpg"
-                  alt="A"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    marginRight: 8,
-                    objectFit: "cover",
-                  }}
-                />
-              )}
+
+          {messages.map((m, i) => {
+            const bubbleStyle =
+              m.role === "user" ? styles.bubbleUser : styles.bubbleAssistant;
+            return (
               <div
-                style={
-                  m.role === "user" ? styles.bubbleUser : styles.bubbleAssistant
-                }
+                key={i}
+                style={{
+                  ...styles.msgRow,
+                  justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+                }}
               >
-                {m.text}
+                {m.role === "assistant" && (
+                  <img
+                    src="/tandem-widget.jpg"
+                    alt="A"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      marginRight: 8,
+                      objectFit: "cover",
+                    }}
+                  />
+                )}
+                <div style={bubbleStyle}>{m.text}</div>
+                {m.role === "user" && <div style={styles.avatar}>U</div>}
               </div>
-              {m.role === "user" && <div style={styles.avatar}>U</div>}
-            </div>
-          ))}
+            );
+          })}
+
           {typing && (
             <div style={{ fontStyle: "italic", color: "#667085" }}>
               Assistant is typing...
             </div>
           )}
         </div>
+
         <div style={styles.quickRow}>
           {quickReplies.map((q) => (
             <button key={q} onClick={() => send(q)} style={styles.quickBtn}>
@@ -340,6 +352,7 @@ export default function ChatWidget({ restaurantId } = {}) {
             </button>
           ))}
         </div>
+
         <div style={styles.inputRow}>
           <textarea
             value={input}
