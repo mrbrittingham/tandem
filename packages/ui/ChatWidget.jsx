@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function ChatWidget() {
+export default function ChatWidget({ restaurantId } = {}) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -34,10 +34,12 @@ export default function ChatWidget() {
     setTyping(true);
     try {
       const url = API_BASE ? `${API_BASE}/api/chat` : '/api/chat';
+      const payload = { message: content };
+      if (restaurantId) payload.restaurant_id = restaurantId;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       const reply = { role: 'assistant', text: json.reply || 'No reply', time: new Date().toISOString() };
@@ -89,10 +91,10 @@ export default function ChatWidget() {
             style={{ all: 'unset', cursor: 'pointer', display: 'inline-block' }}
           >
             <img
-              src="/widget-avatar@128.png"
-              srcSet="/widget-avatar@256.png 2x, /widget-avatar@128.png 1x, /widget-avatar@64.png 0.5x"
+              src="/tandem-widget.jpg"
+              srcSet="/tandem-widget.jpg 1x"
               alt="Tandem"
-              style={{ width: 80, height: 80, borderRadius: 40, boxShadow: '0 8px 30px rgba(10,20,30,0.12)' }}
+              style={{ width: 80, height: 80, borderRadius: 40, boxShadow: '0 8px 30px rgba(10,20,30,0.12)', objectFit: 'cover' }}
             />
           </button>
 
@@ -114,10 +116,10 @@ export default function ChatWidget() {
           </button>
         </div>
         <div ref={msgsRef} style={styles.messages}>
-          {messages.length === 0 && <div style={{ color: '#667085' }}>Hello — ask about the menu, reservations, or hours.</div>}
+              {messages.length === 0 && <div style={{ color: '#667085' }}>Hello — ask about the menu, reservations, or hours.</div>}
           {messages.map((m, i) => (
             <div key={i} style={{ ...styles.msgRow, justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              {m.role === 'assistant' && <img src="/widget-avatar@64.png" alt="A" style={{ width: 28, height: 28, borderRadius: 14, marginRight: 8 }} />}
+              {m.role === 'assistant' && <img src="/tandem-widget.jpg" alt="A" style={{ width: 28, height: 28, borderRadius: 14, marginRight: 8, objectFit: 'cover' }} />}
               <div style={m.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant}>{m.text}</div>
               {m.role === 'user' && <div style={styles.avatar}>U</div>}
             </div>

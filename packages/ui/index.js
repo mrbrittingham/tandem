@@ -1,3 +1,4 @@
+export { default as ChatWidget } from './ChatWidget.jsx';
 import React from 'react';
 
 export function ChatWidgetPlaceholder() {
