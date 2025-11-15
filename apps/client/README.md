@@ -16,7 +16,9 @@ npm run dev
 ```
 
 Environment:
+
 - Copy `../../.env.example` or create `apps/client/.env.local` and provide values for `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_OPENAI_API_KEY`.
 
 Notes:
+
 - The embeddable chat widget UI will be developed in `packages/ui` and integrated into this app.
