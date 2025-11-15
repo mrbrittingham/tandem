@@ -1,4 +1,8 @@
+
 #!/bin/sh
+
+echo "Waiting for container to finish initializing..."
+sleep 3
 
 echo "Cleaning old processes..."
 
