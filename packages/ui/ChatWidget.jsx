@@ -9,8 +9,8 @@ export default function ChatWidget({ restaurantId } = {}) {
   const [unreadCount, setUnreadCount] = useState(1); // start at 1 to show the badge on first load
 
   const API_BASE =
-    typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_URL
-      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")
+    typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
+      ? process.env.NEXT_PUBLIC_API_BASE.replace(/\/$/, "")
       : "";
 
   const COLORS = {
@@ -21,6 +21,71 @@ export default function ChatWidget({ restaurantId } = {}) {
     bay: "#7AC1CD",
     inlet: "#344A55",
   };
+
+  // Replace em dashes and double dashes with a colon per project rule
+  function replaceEmDashes(s) {
+    return s ? s.replace(/—|--/g, ':') : s;
+  }
+
+  function escapeHtml(unsafe) {
+    return String(unsafe)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Lightweight markdown -> safe HTML renderer supporting bold, italics, lists, and line breaks
+  function renderMarkdownToHtml(input) {
+    if (!input && input !== 0) return '';
+    let s = String(input);
+    s = replaceEmDashes(s);
+
+    // Collapse duplicate blank lines
+    s = s.replace(/\n{3,}/g, '\n\n');
+
+    // Escape HTML first
+    s = escapeHtml(s);
+
+    // Bold **text**
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic *text* (avoid interfering with bold)
+    s = s.replace(/\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+
+    const lines = s.split(/\r?\n/);
+    let out = '';
+    let inUl = false;
+    let inOl = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (/^[-*•]\s+/.test(line)) {
+        if (inOl) { out += '</ol>'; inOl = false; }
+        if (!inUl) { out += '<ul>'; inUl = true; }
+        const item = line.replace(/^[-*•]\s+/, '');
+        out += `<li>${item}</li>`;
+      } else if (/^\d+\.\s+/.test(line)) {
+        if (inUl) { out += '</ul>'; inUl = false; }
+        if (!inOl) { out += '<ol>'; inOl = true; }
+        const item = line.replace(/^\d+\.\s+/, '');
+        out += `<li>${item}</li>`;
+      } else if (line === '') {
+        if (inUl) { out += '</ul>'; inUl = false; }
+        if (inOl) { out += '</ol>'; inOl = false; }
+        out += '<br/>';
+      } else {
+        if (inUl) { out += '</ul>'; inUl = false; }
+        if (inOl) { out += '</ol>'; inOl = false; }
+        out += `<p>${line}</p>`;
+      }
+    }
+
+    if (inUl) out += '</ul>';
+    if (inOl) out += '</ol>';
+
+    return out;
+  }
 
 
   const scrollToBottom = () => {
@@ -42,7 +107,9 @@ export default function ChatWidget({ restaurantId } = {}) {
     setTyping(true);
 
     try {
-      const url = API_BASE ? `${API_BASE}/api/chat` : "/api/chat";
+      // Always send chat requests to the backend's /chat endpoint.
+      // Prefer NEXT_PUBLIC_API_BASE when provided; otherwise send same-origin `/chat`.
+      const url = API_BASE ? `${API_BASE}/chat` : "/chat";
       const payload = { message: content };
       if (restaurantId) payload.restaurant_id = restaurantId;
 
@@ -332,7 +399,16 @@ export default function ChatWidget({ restaurantId } = {}) {
                     }}
                   />
                 )}
-                <div style={bubbleStyle}>{m.text}</div>
+                <div style={bubbleStyle}>
+                  {m.role === 'assistant' ? (
+                    <div
+                      dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(String(m.text || '')) }}
+                    />
+                  ) : (
+                    // user messages rendered as plain text
+                    <div>{String(m.text)}</div>
+                  )}
+                </div>
                 {m.role === "user" && <div style={styles.avatar}>U</div>}
               </div>
             );

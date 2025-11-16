@@ -13,8 +13,8 @@ export default function RestaurantPage({ params }) {
     const load = async () => {
       try {
         const API_BASE =
-          typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_URL
-            ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")
+          typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
+            ? process.env.NEXT_PUBLIC_API_BASE.replace(/\/$/, "")
             : "";
         const base = API_BASE || "";
 
