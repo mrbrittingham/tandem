@@ -6,7 +6,7 @@ export default function ChatWidget({ restaurantId } = {}) {
   const [messages, setMessages] = useState([]);
   const [typing, setTyping] = useState(false);
   const msgsRef = useRef(null);
-  const [unreadCount, setUnreadCount] = useState(0); // start at 0
+  const [unreadCount, setUnreadCount] = useState(1); // start at 1 to show the badge on first load
 
   const API_BASE =
     typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_URL
@@ -22,10 +22,10 @@ export default function ChatWidget({ restaurantId } = {}) {
     inlet: "#344A55",
   };
 
+
   const scrollToBottom = () => {
     // If the element exists, update scroll position.
-    if (msgsRef.current)
-      msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
+    if (msgsRef.current) msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
   };
 
   useEffect(() => {
@@ -87,9 +87,7 @@ export default function ChatWidget({ restaurantId } = {}) {
   const FONT_FAMILY =
     "Inter, system-ui, -apple-system, \"Segoe UI\", Roboto, 'Helvetica Neue', Arial";
   const avatarDisplay = open ? "none" : "block";
-  const panelTransform = open
-    ? "translateY(0) scale(1)"
-    : "translateY(8px) scale(0.98)";
+  const panelTransform = open ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)";
 
   const styles = {
     root: {
@@ -257,6 +255,8 @@ export default function ChatWidget({ restaurantId } = {}) {
 
           {unreadCount > 0 && (
             <div
+              role="status"
+              aria-label={`${unreadCount} unread messages`}
               style={{
                 position: "absolute",
                 top: -6,

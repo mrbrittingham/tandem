@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ChatWidget } from "../../../../packages/ui";
+import { ChatWidget } from "ui";
 
 export default function RestaurantPage({ params }) {
   const id = params?.id || "windmill-creek";

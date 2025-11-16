@@ -4,6 +4,8 @@ This document is the canonical runbook for working on the Tandem monorepo across
 
 Keep this file in the repo so everyone has the same reference.
 
+> NOTE: This repository currently uses Option A: the client (`apps/client`) exposes internal Next.js API routes under `apps/client/pages/api/*` for chat/demo endpoints. The standalone `packages/api` server exists for compatibility but is optional and not required for the default deployment. Do NOT rely on `restaurant-chatbot-server` or external proxies.
+
 ---
 
 ## Quick repo layout
