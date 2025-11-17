@@ -1,12 +1,17 @@
 #!/bin/sh
 
-# Export env vars from the workspace .env in a POSIX-compatible way
+# Load env vars only if a .env file actually exists
 set -a
-. /workspace/.env
+if [ -f /workspace/.env ]; then
+	echo "Loading /workspace/.env..."
+	. /workspace/.env
+else
+	echo "No /workspace/.env found — skipping env load (expected for this project)."
+fi
 set +a
 
 echo "Waiting for container to finish initializing..."
-sleep 3
+sleep 2
 
 echo "Force-killing anything using ports 3000, 3001, 4000..."
 
