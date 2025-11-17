@@ -67,6 +67,29 @@ const supabaseFetch = async (pathSuffix, opts = {}, useServiceRole = false) => {
   }
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveRestaurantUuid(value) {
+  if (!value) return null;
+  const v = String(value).trim();
+  if (UUID_RE.test(v)) return v;
+  // treat as slug
+  if (SUPABASE_URL && (SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY)) {
+    // try slug column
+    let res = await supabaseFetch(`/rest/v1/restaurants?slug=eq.${encodeURIComponent(v)}&select=id`);
+    if (Array.isArray(res) && res.length) return res[0].id;
+    // try domain
+    res = await supabaseFetch(`/rest/v1/restaurants?domain=eq.${encodeURIComponent(v)}&select=id`);
+    if (Array.isArray(res) && res.length) return res[0].id;
+    // try name ilike (dashes -> spaces)
+    const nameCandidate = v.replace(/-/g, " ");
+    res = await supabaseFetch(`/rest/v1/restaurants?name=ilike.%25${encodeURIComponent(nameCandidate)}%25&select=id`);
+    if (Array.isArray(res) && res.length) return res[0].id;
+    return null;
+  }
+  return null;
+}
+
 const openaiChat = async ({ message, system = null }) => {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
   const url = "https://api.openai.com/v1/chat/completions";
@@ -111,6 +134,12 @@ const requestHandler = async (req, res) => {
 
     if (req.url === "/health") {
       sendJson(res, 200, { status: "ok" });
+      return;
+    }
+
+    // Provide a canonical /api/health endpoint (clients may probe this path)
+    if (req.url === "/api/health" && req.method === "GET") {
+      sendJson(res, 200, { ok: true });
       return;
     }
 
@@ -187,6 +216,127 @@ const requestHandler = async (req, res) => {
       return;
     }
 
+    // POST /chat -> forwards to OpenAI (also accept /api/chat for legacy)
+    if (req.url === "/chat" && req.method === "POST") {
+      const body = await parseBody(req);
+      if (!body || !body.message) {
+        sendJson(res, 400, { error: "message is required" });
+        return;
+      }
+      try {
+        let system = null;
+        // Accept restaurant_slug or restaurant_id
+        const inputRestaurant = body.restaurant_slug || body.restaurant_id || null;
+        let resolvedRid = null;
+        if (inputRestaurant) {
+          try {
+            resolvedRid = await resolveRestaurantUuid(inputRestaurant);
+          } catch (err) {
+            sendJson(res, 500, { error: "slug resolution failed" });
+            return;
+          }
+          if (!resolvedRid) {
+            // if input looked like a slug (not uuid), return 404 per requirements
+            if (!UUID_RE.test(String(inputRestaurant).trim())) {
+              sendJson(res, 404, { error: "restaurant slug not found" });
+              return;
+            }
+            // else treat as provided uuid
+            resolvedRid = String(inputRestaurant).trim();
+          }
+        }
+
+        if (resolvedRid) {
+          const rid = String(resolvedRid);
+          if (SUPABASE_URL && (SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY)) {
+            try {
+              const r = await supabaseFetch(`/rest/v1/restaurants?id=eq.${encodeURIComponent(rid)}&select=*`);
+              const restaurant = Array.isArray(r) && r.length ? r[0] : null;
+              if (restaurant) {
+                system = `You are an assistant for ${restaurant.name} (${restaurant.short_name || restaurant.id}). `;
+              }
+
+              const menus = await supabaseFetch(`/rest/v1/menus?restaurant_id=eq.${encodeURIComponent(rid)}&select=*,menu_items(*)`);
+              if (menus && menus.length) {
+                system = (system || "") + "\nMenu items:\n";
+                for (const menu of menus) {
+                  system += `-- ${menu.title}: `;
+                  const items = (menu.items || menu.menu_items || []).map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                  system += items.join(", ") + "\n";
+                }
+              }
+
+              const faqs = await supabaseFetch(`/rest/v1/faqs?restaurant_id=eq.${encodeURIComponent(rid)}&select=*`);
+              if (faqs && faqs.length) {
+                system = (system || "") + "\nFAQs:\n";
+                for (const f of faqs) {
+                  system += `Q: ${f.question} A: ${f.answer}\n`;
+                }
+              }
+            } catch (e) {
+              // If Supabase fails, fall back to demo JSON below
+              try {
+                const demoPath = path.join(__dirname, "demo", "windmill.json");
+                const txt = await fsReadFile(demoPath, "utf8");
+                const json = JSON.parse(txt);
+                if (json.restaurant) {
+                  system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+                }
+                if (json.menus) {
+                  system += "\nMenu items:\n";
+                  for (const menu of json.menus) {
+                    system += `-- ${menu.title}: `;
+                    const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                    system += names.join(", ") + "\n";
+                  }
+                }
+                if (json.faqs) {
+                  system += "\nFAQs:\n";
+                  for (const f of json.faqs) {
+                    system += `Q: ${f.question} A: ${f.answer}\n`;
+                  }
+                }
+              } catch {
+                // ignore demo read errors
+              }
+            }
+          } else {
+            // Supabase not configured: use demo JSON
+            try {
+              const demoPath = path.join(__dirname, "demo", "windmill.json");
+              const txt = await fsReadFile(demoPath, "utf8");
+              const json = JSON.parse(txt);
+              if (json.restaurant) {
+                system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+              }
+              if (json.menus) {
+                system += "\nMenu items:\n";
+                for (const menu of json.menus) {
+                  system += `-- ${menu.title}: `;
+                  const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                  system += names.join(", ") + "\n";
+                }
+              }
+              if (json.faqs) {
+                system += "\nFAQs:\n";
+                for (const f of json.faqs) {
+                  system += `Q: ${f.question} A: ${f.answer}\n`;
+                }
+              }
+            } catch {
+              // ignore demo read errors
+            }
+          }
+        }
+
+        const reply = await openaiChat({ message: body.message, system });
+        sendJson(res, 200, { reply });
+      } catch (e) {
+        sendJson(res, 502, { error: e.message || "OpenAI request failed" });
+      }
+      return;
+    }
+
     // POST /api/chat -> forwards to OpenAI
     if (req.url === "/api/chat" && req.method === "POST") {
       const body = await parseBody(req);
@@ -196,33 +346,100 @@ const requestHandler = async (req, res) => {
       }
       try {
         let system = null;
-        if (body.restaurant_id) {
-          // fetch demo restaurant context where available
+        const inputRestaurant = body.restaurant_slug || body.restaurant_id || null;
+        let resolvedRid = null;
+        if (inputRestaurant) {
           try {
-            const demoPath = path.join(__dirname, "demo", "windmill.json");
-            const txt = await fsReadFile(demoPath, "utf8");
-            const json = JSON.parse(txt);
-            if (json.restaurant) {
-              system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+            resolvedRid = await resolveRestaurantUuid(inputRestaurant);
+          } catch (err) {
+            sendJson(res, 500, { error: "slug resolution failed" });
+            return;
+          }
+          if (!resolvedRid) {
+            if (!UUID_RE.test(String(inputRestaurant).trim())) {
+              sendJson(res, 404, { error: "restaurant slug not found" });
+              return;
             }
-            if (json.menus) {
-              system += "\nMenu items:\n";
-              for (const menu of json.menus) {
-                system += `-- ${menu.title}: `;
-                const names = menu.items.map(
-                  (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
-                );
-                system += names.join(", ") + "\n";
+            resolvedRid = String(inputRestaurant).trim();
+          }
+        }
+
+        if (resolvedRid) {
+          const rid = String(resolvedRid);
+          if (SUPABASE_URL && (SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY)) {
+            try {
+              const r = await supabaseFetch(`/rest/v1/restaurants?id=eq.${encodeURIComponent(rid)}&select=*`);
+              const restaurant = Array.isArray(r) && r.length ? r[0] : null;
+              if (restaurant) {
+                system = `You are an assistant for ${restaurant.name} (${restaurant.short_name || restaurant.id}). `;
+              }
+              const menus = await supabaseFetch(`/rest/v1/menus?restaurant_id=eq.${encodeURIComponent(rid)}&select=*,menu_items(*)`);
+              if (menus && menus.length) {
+                system = (system || "") + "\nMenu items:\n";
+                for (const menu of menus) {
+                  system += `-- ${menu.title}: `;
+                  const items = (menu.items || menu.menu_items || []).map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                  system += items.join(", ") + "\n";
+                }
+              }
+              const faqs = await supabaseFetch(`/rest/v1/faqs?restaurant_id=eq.${encodeURIComponent(rid)}&select=*`);
+              if (faqs && faqs.length) {
+                system = (system || "") + "\nFAQs:\n";
+                for (const f of faqs) {
+                  system += `Q: ${f.question} A: ${f.answer}\n`;
+                }
+              }
+            } catch (e) {
+              try {
+                const demoPath = path.join(__dirname, "demo", "windmill.json");
+                const txt = await fsReadFile(demoPath, "utf8");
+                const json = JSON.parse(txt);
+                if (json.restaurant) {
+                  system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+                }
+                if (json.menus) {
+                  system += "\nMenu items:\n";
+                  for (const menu of json.menus) {
+                    system += `-- ${menu.title}: `;
+                    const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                    system += names.join(", ") + "\n";
+                  }
+                }
+                if (json.faqs) {
+                  system += "\nFAQs:\n";
+                  for (const f of json.faqs) {
+                    system += `Q: ${f.question} A: ${f.answer}\n`;
+                  }
+                }
+              } catch {
+                // ignore demo read errors
               }
             }
-            if (json.faqs) {
-              system += "\nFAQs:\n";
-              for (const f of json.faqs) {
-                system += `Q: ${f.question} A: ${f.answer}\n`;
+          } else {
+            try {
+              const demoPath = path.join(__dirname, "demo", "windmill.json");
+              const txt = await fsReadFile(demoPath, "utf8");
+              const json = JSON.parse(txt);
+              if (json.restaurant) {
+                system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
               }
+              if (json.menus) {
+                system += "\nMenu items:\n";
+                for (const menu of json.menus) {
+                  system += `-- ${menu.title}: `;
+                  const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                  system += names.join(", ") + "\n";
+                }
+              }
+              if (json.faqs) {
+                system += "\nFAQs:\n";
+                for (const f of json.faqs) {
+                  system += `Q: ${f.question} A: ${f.answer}\n`;
+                }
+              }
+            } catch {
+              // ignore demo read errors
             }
-          } catch {
-            // ignore demo read errors
           }
         }
 

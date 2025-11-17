@@ -1,17 +1,24 @@
-{
-  "name": "Tandem Dev",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
-  "workspaceFolder": "/workspace",
-  "forwardPorts": [3000, 3001, 4000],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
-  "postCreateCommand": "npm install",
-  "postAttachCommand": "./tandem-dev-start.sh",
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "editor.formatOnSave": true
-      },
-      "extensions": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
-    }
-  }
+﻿{
+    "name":  "Tandem Dev",
+    "image":  "mcr.microsoft.com/devcontainers/javascript-node:20",
+    "workspaceFolder":  "/workspace",
+    "forwardPorts":  [
+                         3000,
+                         3001,
+                         4000
+                     ],
+    "workspaceMount":  "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "postCreateCommand":  "npm install",
+    "postAttachCommand":  "./tandem-dev-start.sh",
+    "customizations":  {
+                           "vscode":  {
+                                          "settings":  {
+                                                           "editor.formatOnSave":  true
+                                                       },
+                                          "extensions":  [
+                                                             "esbenp.prettier-vscode",
+                                                             "dbaeumer.vscode-eslint"
+                                                         ]
+                                      }
+                       }
 }

@@ -2,10 +2,9 @@ import React, { useEffect, useState } from "react";
 import { ChatWidget } from "ui";
 
 export default function RestaurantPage({ params }) {
-  const id = params?.id || "windmill-creek";
+  const slug = params?.slug;
   const [restaurant, setRestaurant] = useState(null);
-  // menus/faqs are unused in this simplified demo page
-  const [heroSrc, setHeroSrc] = useState(`/restaurants/${id}/hero-image.jpg`);
+  const [heroSrc, setHeroSrc] = useState(slug ? `/restaurants/${slug}/hero-image.jpg` : "/restaurants/hero.svg");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,26 +17,25 @@ export default function RestaurantPage({ params }) {
             : "";
         const base = API_BASE || "";
 
-        // Only load the demo restaurant payload used by this page
-        const rRes = await fetch(`${base}/api/demo/restaurant`);
-        if (!rRes.ok) throw new Error("Demo endpoint unavailable");
+        if (!slug) throw new Error("restaurant slug required");
+
+        const rRes = await fetch(`${base}/api/restaurant?id=${encodeURIComponent(slug)}`);
+        if (!rRes.ok) throw new Error("Restaurant endpoint unavailable");
         const restaurantJson = await rRes.json();
         if (!mounted) return;
         setRestaurant(restaurantJson);
 
-        // probe for hero-image.jpg in public folder; fall back to svg if missing
         try {
-          const imgResp = await fetch(`/restaurants/${id}/hero-image.jpg`);
-          if (imgResp.ok) setHeroSrc(`/restaurants/${id}/hero-image.jpg`);
-          else setHeroSrc(`/restaurants/${id}/hero.svg`);
+          const imgResp = await fetch(`/restaurants/${slug}/hero-image.jpg`);
+          if (imgResp.ok) setHeroSrc(`/restaurants/${slug}/hero-image.jpg`);
+          else setHeroSrc(`/restaurants/${slug}/hero.svg`);
         } catch {
-          // ignore failures probing the public image; fall back to svg
-          setHeroSrc(`/restaurants/${id}/hero.svg`);
+          setHeroSrc(`/restaurants/${slug}/hero.svg`);
         }
 
         setLoading(false);
       } catch (err) {
-        console.error("Failed to load demo data", err);
+        console.error("Failed to load restaurant data", err);
         setLoading(false);
       }
     };
@@ -46,15 +44,14 @@ export default function RestaurantPage({ params }) {
     return () => {
       mounted = false;
     };
-  }, [id]);
+  }, [slug]);
 
   if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
   if (!restaurant)
     return (
-      <div style={{ padding: 24 }}>Failed to load restaurant demo data.</div>
+      <div style={{ padding: 24 }}>Failed to load restaurant data.</div>
     );
 
-  // Render only the static hero background and the chat widget (per request)
   return (
     <div
       style={{
@@ -84,7 +81,7 @@ export default function RestaurantPage({ params }) {
       </section>
 
       {/* Chat widget only (anchored bottom-right) */}
-      <ChatWidget restaurantId={restaurant.id || id} />
+      <ChatWidget restaurantId={slug} />
     </div>
   );
 }

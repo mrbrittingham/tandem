@@ -1,6 +1,9 @@
-
 #!/bin/sh
 
+# Export env vars from the workspace .env in a POSIX-compatible way
+set -a
+. /workspace/.env
+set +a
 
 echo "Waiting for container to finish initializing..."
 sleep 3

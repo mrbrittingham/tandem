@@ -22,14 +22,46 @@ async function supabaseFetch(pathSuffix, opts = {}) {
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveRestaurantUuid(value) {
+  if (!value) return null;
+  const v = String(value).trim();
+  if (UUID_RE.test(v)) return v;
+  if (process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+    let res = await supabaseFetch(`/rest/v1/restaurants?slug=eq.${encodeURIComponent(v)}&select=id`);
+    if (Array.isArray(res) && res.length) return res[0].id;
+    res = await supabaseFetch(`/rest/v1/restaurants?domain=eq.${encodeURIComponent(v)}&select=id`);
+    if (Array.isArray(res) && res.length) return res[0].id;
+    const nameCandidate = v.replace(/-/g, " ");
+    res = await supabaseFetch(`/rest/v1/restaurants?name=ilike.%25${encodeURIComponent(nameCandidate)}%25&select=id`);
+    if (Array.isArray(res) && res.length) return res[0].id;
+    return null;
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
-  const id = req.query.restaurant || req.query.id || req.body?.restaurant_id;
-  if (!id) return res.status(400).json({ error: "restaurant id required" });
+  const input = req.query.restaurant || req.query.id || req.body?.restaurant_id || req.body?.restaurant_slug;
+  if (!input) return res.status(400).json({ error: "restaurant id or slug required" });
+
+  let rid = null;
+  try {
+    rid = await resolveRestaurantUuid(input);
+  } catch (err) {
+    console.error("/api/faqs slug resolution error", err);
+    return res.status(500).json({ error: "slug resolution failed" });
+  }
+
+  if (!rid) {
+    if (!UUID_RE.test(String(input).trim())) return res.status(404).json({ error: "restaurant slug not found" });
+    rid = String(input).trim();
+  }
 
   if (process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) {
     try {
-      const rid = encodeURIComponent(id);
-      const f = await supabaseFetch(`/rest/v1/faqs?restaurant_id=eq.${rid}&select=*`);
+      const enc = encodeURIComponent(rid);
+      const f = await supabaseFetch(`/rest/v1/faqs?restaurant_id=eq.${enc}&select=*`);
       return res.status(200).json(f || []);
     } catch (err) {
       console.error("/api/faqs supabase error", err);

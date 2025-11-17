@@ -148,14 +148,88 @@ export default async function handler(req, res) {
     }
 
     // If OpenAI API key is missing, return a helpful demo placeholder
+    // We'll still format the placeholder through formatBotReply for consistency
+    function replaceEmDashes(s) {
+      return s ? s.replace(/—|--/g, ':') : s;
+    }
+
+    function collapseBlankLines(s) {
+      return s.replace(/\n{3,}/g, '\n\n');
+    }
+
+    function trimLines(s) {
+      return s.split(/\r?\n/).map((l) => l.trimRight()).join('\n').trim();
+    }
+
+    function formatMenuItem(item) {
+      const lines = [];
+      lines.push(`**${item.name}**`);
+      if (item.description) lines.push(`• ${item.description}`);
+      if (item.price !== undefined && item.price !== null) lines.push(`• Price: $${item.price}`);
+      if (item.notes) {
+        // try to extract pairing from notes
+        const m = /Pairing:\s*(.*)/i.exec(item.notes);
+        if (m) lines.push(`• Pairing: ${m[1]}`);
+      }
+      return lines.join('\n');
+    }
+
+    async function formatBotReply(modelReply) {
+      let r = modelReply || '';
+      r = String(r);
+      r = r.trim();
+      r = replaceEmDashes(r);
+      r = collapseBlankLines(r);
+
+      // If empty after trimming, return fallback
+      if (!r) return 'I am here to help. Try asking about the menu, hours, or reservations.';
+
+      // Attempt to load demo data for menu/faq lookups
+      const demo = await readDemo();
+
+      // Menu item exact match (case-insensitive)
+      if (demo && Array.isArray(demo.menus)) {
+        for (const menu of demo.menus) {
+          if (!menu.items) continue;
+          for (const item of menu.items) {
+            if (item && item.name && item.name.toLowerCase() === r.toLowerCase()) {
+              return replaceEmDashes(formatMenuItem(item));
+            }
+          }
+        }
+      }
+
+      // FAQ pattern: begins with Q: or matches a demo FAQ question
+      const qMatch = /^Q:\s*(.+?)\s*(?:A:|$)/i.exec(r);
+      if (qMatch) {
+        const question = qMatch[1].trim();
+        const answer = r.replace(/^Q:\s*.+?\s*(?:A:)?\s*/i, '').trim();
+        const out = `**${question}**\n${answer || ''}`.replace(/—|--/g, ':');
+        return collapseBlankLines(out);
+      }
+
+      if (demo && Array.isArray(demo.faqs)) {
+        for (const f of demo.faqs) {
+          if (f.question && r.toLowerCase().startsWith(f.question.toLowerCase())) {
+            const out = `**${f.question}**\n${f.answer || ''}`.replace(/—|--/g, ':');
+            return collapseBlankLines(out);
+          }
+        }
+      }
+
+      // Default: return trimmed, em-dash-replaced reply
+      return trimLines(r).replace(/—|--/g, ':');
+    }
+
     if (!process.env.OPENAI_API_KEY) {
-      const placeholder =
-        "Hi! I’m your demo chatbot. Add API keys to enable real responses.";
-      return res.status(200).json({ reply: placeholder });
+      const placeholder = 'Hi! I\u2019m your demo chatbot. Add API keys to enable real responses.';
+      const formatted = await formatBotReply(placeholder);
+      return res.status(200).json({ reply: formatted });
     }
 
     // Ask OpenAI
-    const reply = await openaiChat({ message: body.message, system });
+    const modelReply = await openaiChat({ message: body.message, system });
+    const reply = await formatBotReply(modelReply);
     return res.status(200).json({ reply });
   } catch (err) {
     console.error("/api/chat error", err);

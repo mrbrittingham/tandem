@@ -8,10 +8,11 @@ export default function ChatWidget({ restaurantId } = {}) {
   const msgsRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(1); // start at 1 to show the badge on first load
 
-  const API_BASE =
-    typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
-      ? process.env.NEXT_PUBLIC_API_BASE.replace(/\/$/, "")
-      : "";
+  // Prefer the explicit NEXT_PUBLIC_API_URL env var, fall back to NEXT_PUBLIC_API_BASE for backwards compatibility
+  const _envUrl = typeof window !== "undefined" && (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE)
+    ? (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE).replace(/\/$/, "")
+    : "";
+  const API_BASE = _envUrl;
 
   const COLORS = {
     nearshore: "#0E5A81",
@@ -107,11 +108,18 @@ export default function ChatWidget({ restaurantId } = {}) {
     setTyping(true);
 
     try {
-      // Always send chat requests to the backend's /chat endpoint.
+      // Always send chat requests to the backend's /api/chat endpoint.
       // Prefer NEXT_PUBLIC_API_BASE when provided; otherwise send same-origin `/chat`.
-      const url = API_BASE ? `${API_BASE}/chat` : "/chat";
+      const url = API_BASE ? `${API_BASE}/api/chat` : "/chat";
       const payload = { message: content };
-      if (restaurantId) payload.restaurant_id = restaurantId;
+      // restaurantId may be a slug or a uuid; send slug as `restaurant_slug` and uuid as `restaurant_id`.
+      function isUUID(v) {
+        return typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+      }
+      if (restaurantId) {
+        if (isUUID(restaurantId)) payload.restaurant_id = restaurantId;
+        else payload.restaurant_slug = restaurantId;
+      }
 
       const res = await fetch(url, {
         method: "POST",

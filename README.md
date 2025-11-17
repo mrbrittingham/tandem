@@ -206,4 +206,62 @@ kill <PID>
 - Use `git push` / `git pull` to move code changes between machines.
 - Reopen the repository in the devcontainer after pulling new code to ensure the environment is current.
 
+**AI Agent Workflow Rules — Server Restart Handling**
+
+- **Policy:** The AI agent must not restart, stop, or otherwise control any local development servers (Next.js, API server, or other) without explicit user permission.
+- **When a change requires a restart:** the agent will (a) add and commit the code changes, (b) provide the exact command(s) the user should run to restart the affected service(s), and (c) provide a short re-entry prompt describing what logs or outputs to collect and where to paste them back into the conversation.
+- **When runtime logs are needed:** the agent will add targeted debug logging and clearly indicate the exact restart and log-capture commands for the user to run. The agent will not execute the restart itself.
+- **Exceptions:** None. Always ask before performing any action that restarts or stops user services.
+
+The following rules are the authoritative, permanent workflow the AI agent will follow in this repository. Do not change these without explicit consent from the repository maintainer.
+
+1. Never restart any server, process, or service on your own.
+   - If a restart is required, the agent must pause immediately and notify the user.
+
+2. Before the user performs a restart, the agent must:
+   - State the exact task it was working on.
+   - Explain exactly why a restart is necessary.
+   - Confirm whether `README.md` already contains the restart workflow rules; if not, update it immediately.
+
+3. When a restart is required, the agent must provide BOTH restart choices and let the user decide:
+   - (A) Reopen the Dev Container (preferred clean method).
+   - (B) Run manual restart commands in the terminal without reopening the container.
+   - The agent must not assume which method the user will use — always ask.
+
+4. After offering the restart options, the agent must generate a “POST-RESTART RE-SYNC PROMPT” for the user to paste back into the chat once the restart is complete.
+
+5. The POST-RESTART RE-SYNC PROMPT must ALWAYS follow this exact template (do not alter):
+
+   ---------------------------------------------------------
+   POST-RESTART RE-SYNC PROMPT (TEMPLATE — DO NOT ALTER)
+
+   “I restarted the server/container. Resume with the following context:
+
+   • Last task you were working on:
+     <summarize the task>
+
+   • Steps you already completed:
+     <list each completed step>
+
+   • The next step you need to continue with:
+     <state the exact next action>
+
+   • Files, paths, or variables you should keep in mind:
+     <list any required context such as file names, endpoint URLs, env vars>
+
+   Resume exactly from here without repeating steps or executing ahead.”
+   ---------------------------------------------------------
+
+6. After giving the Re-Sync Prompt, the agent must stop all actions and wait. The agent must not run commands, write files, or continue until the user pastes the Re-Sync Prompt back after the restart.
+
+7. After the user restarts and pastes the Re-Sync Prompt back, the agent must:
+   - Resume exactly where it left off.
+   - Not redo any finished steps.
+   - Not skip ahead.
+   - Continue working normally from that point.
+
+8. These rules apply permanently to every future action in this workspace.
+
+When these rules are saved to `README.md`, the agent will pause and report it is ready for the next step.
+
 ---
