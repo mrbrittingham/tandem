@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { ChatWidget } from "ui";
+import { useRouter } from "next/router";
 
-export default function RestaurantPage({ params }) {
-  const slug = params?.slug;
+export default function RestaurantPage() {
+  const router = useRouter();
+  const { slug } = router.query || {};
+  console.log("PARAMS:", slug);
   const [restaurant, setRestaurant] = useState(null);
+  const [menus, setMenus] = useState([]);
+  const [faqs, setFaqs] = useState([]);
   const [heroSrc, setHeroSrc] = useState(slug ? `/restaurants/${slug}/hero-image.jpg` : "/restaurants/hero.svg");
   const [loading, setLoading] = useState(true);
 
@@ -11,19 +16,37 @@ export default function RestaurantPage({ params }) {
     let mounted = true;
     const load = async () => {
       try {
-        const API_BASE =
-          typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
-            ? process.env.NEXT_PUBLIC_API_BASE.replace(/\/$/, "")
-            : "";
-        const base = API_BASE || "";
+        // Always use the same-origin Next.js API route to fetch restaurant data.
+        if (!slug) {
+          // slug not ready yet (client router); leave loading state until slug appears
+          return;
+        }
 
-        if (!slug) throw new Error("restaurant slug required");
-
-        const rRes = await fetch(`${base}/api/restaurant?id=${encodeURIComponent(slug)}`);
-        if (!rRes.ok) throw new Error("Restaurant endpoint unavailable");
+        const rRes = await fetch(`/api/restaurant?id=${encodeURIComponent(slug)}`);
+        if (!rRes.ok) {
+          console.error("/api/restaurant returned non-OK", rRes.status);
+          throw new Error("Restaurant endpoint unavailable");
+        }
         const restaurantJson = await rRes.json();
         if (!mounted) return;
-        setRestaurant(restaurantJson);
+        setRestaurant(restaurantJson || null);
+
+        // Fetch menus and faqs for this restaurant (only after restaurant fetch succeeds)
+        try {
+          const mRes = await fetch(`/api/menus?restaurant=${encodeURIComponent(slug)}`);
+          const menusJson = mRes.ok ? await mRes.json() : [];
+          if (mounted) setMenus(menusJson);
+        } catch {
+          if (mounted) setMenus([]);
+        }
+
+        try {
+          const fRes = await fetch(`/api/faqs?restaurant=${encodeURIComponent(slug)}`);
+          const faqsJson = fRes.ok ? await fRes.json() : [];
+          if (mounted) setFaqs(faqsJson);
+        } catch {
+          if (mounted) setFaqs([]);
+        }
 
         try {
           const imgResp = await fetch(`/restaurants/${slug}/hero-image.jpg`);
@@ -81,7 +104,7 @@ export default function RestaurantPage({ params }) {
       </section>
 
       {/* Chat widget only (anchored bottom-right) */}
-      <ChatWidget restaurantId={slug} />
+      <ChatWidget restaurantId={restaurant?.id || slug} />
     </div>
   );
 }

@@ -1,267 +1,172 @@
-# Tandem (monorepo)
+# Tandem — Developer Guide (updated: 11/17/2025)
 
-Tandem is a SaaS platform for restaurant chatbots.
+Tandem is a multi-app monorepo built to power AI-driven restaurant chatbots, menu browsing, FAQ automation, and an embeddable widget for restaurant websites.
 
-Monorepo layout:
+This repository includes:
 
-- apps/admin: admin dashboard
-- apps/client: restaurant dashboard + widget generator
-- packages/api: backend logic and API routes
-- packages/ui: shared React components
-- supabase: database migrations and schema
-
-To get started locally:
-
-1. Create environment files for each app (see docs).
-2. Install dependencies per-app (e.g. `cd apps/admin && npm install`).
-3. Run the app you want to develop.
-
-I will guide you step-by-step from here.
-
-## Run locally (devcontainer)
-
-If you're inside the provided devcontainer, the easiest way to start all services at once is:
-
-```bash
-cd /workspace
-npm install
-npm run dev
-```
-
-This runs the Admin, Client, and API together (via the root `dev` script). After it starts:
-
-- Admin: http://localhost:3000
-- Client: http://localhost:3001
-- API: http://localhost:4000
-
-Stop all services with `Ctrl+C` in the same terminal.
+- **apps/client** — Public-facing restaurant pages + ChatWidget  
+- **apps/admin** — Admin dashboard  
+- **packages/api** — Standalone Express API  
+- **packages/ui** — Shared UI components (including ChatWidget)  
+- **scripts/** — Seed and data generation scripts  
+- **supabase/** — SQL schema and seed data  
+- **Devcontainer** — Automated development environment  
 
 ---
 
-**Automated bootstrap (one-command local setup)**
+## 1. Devcontainer Autostart Behavior
 
-- A PowerShell helper script `scripts/bootstrap.ps1` is included to help create local env files and print exact next steps.
+When this repo is opened in VS Code:
 
-How to run the bootstrap script:
+1. VS Code detects `.devcontainer/devcontainer.json`.  
+2. It prompts to **Reopen in Container**.  
+3. After the container starts:
+   - `postCreateCommand` runs `npm install`
+   - `postAttachCommand` runs `bash /workspace/tandem-dev-start.sh`
 
-1. Open PowerShell and go to the repo root:
-   ```powershell
-   cd C:\Users\mcsf6\tandem
+The startup script:
+
+- Loads `/workspace/.env` if present  
+- Waits briefly for initialization  
+- Force-kills anything bound to **3000**, **3001**, or **4000**  
+- Starts all dev servers via `npm run dev`
+
+Developers do **not** manually start dev servers — they launch automatically.
+
+---
+
+## 2. AI Agent Workflow Rules (Strict)
+
+These rules apply to the AI assistant used inside VS Code.
+
+### The agent **may NOT**:
+- Restart dev servers  
+- Run `npm run dev`  
+- Kill processes  
+- Rebuild containers  
+- Modify `devcontainer.json` or the startup script without explicit approval  
+- Run Docker commands  
+
+### If a restart is required:
+
+The agent must say:
+
+> “A restart is required. Please rebuild the container manually and then paste the RE-SYNC PROMPT.”
+
+### After the developer rebuilds the container, they must paste:
+
+```
+RE-SYNC PROMPT:
+The container has restarted. Re-sync with repository state,
+running servers, environment variables, and recent context. 
+Do not restart servers. Do not assume any processes are running. 
+Continue the previous task in inspection-only mode unless instructed otherwise.
+```
+
+---
+
+## 3. Environment File Behavior
+
+### `/workspace/.env`
+Optional.  
+The startup script handles its absence safely.  
+
+### `.env.local`
+Used by Next.js apps (`apps/client`, `apps/admin`).  
+
+### Supabase configuration
+Provided by:
+- Devcontainer environment injection  
+- Render deployment variables  
+- Vercel environment variables  
+
+---
+
+## 4. Restaurant Identity Architecture  
+**Slug → UUID → Data → Chat System**
+
+1. User visits `/restaurant/<slug>`.  
+2. The page loads data from `/api/restaurant?id=<slug>`.  
+3. The server resolves the slug to a database UUID.  
+4. The page passes the UUID to the ChatWidget:  
+   ```jsx
+   <ChatWidget restaurantId={restaurant.id} />
    ```
-2. Allow the script to run for this session, then execute it:
-   ```powershell
-   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-   .\scripts\bootstrap.ps1
-   ```
-3. The script will ask for Supabase and OpenAI keys (you can paste real keys or leave blank to use placeholders). It will then write local env files at:
-   - `packages/api/.env` (server-only keys)
-   - `apps/admin/.env.local` (public frontend keys)
-   - `apps/client/.env.local` (public frontend keys)
-
-Notes:
-
-- The script does not upload secrets anywhere. It only writes local files for development.
-- To deploy to Vercel or create a Supabase project, follow the step-by-step instructions earlier in this README. If you want more automation to set env vars on Vercel via CLI, I can add that option.
+5. The widget POSTs to `/api/chat`, sending `restaurant_id`.  
+6. The server loads restaurant/menus/faqs and generates AI system context.
 
 ---
 
-Scaffold added (starter files)
+## 5. API Endpoints
 
-- Basic Next.js pages: `apps/admin/pages/index.js`, `apps/client/pages/index.js`
-- Starter API server: `packages/api/index.js` (simple health endpoint)
-- Starter UI component: `packages/ui/index.js`
-- `.env.example` files at project root and inside each app/package
-- Per-app READMEs with exact install/run commands
+### Chat:
+```
+POST /api/chat
+```
 
-Next steps (pick one):
+### Data:
+```
+GET /api/restaurant?id=<slug-or-uuid>
+GET /api/menus?id=<slug-or-uuid>
+GET /api/faqs?id=<slug-or-uuid>
+```
 
-- I can show step-by-step commands to create the GitHub repository, Vercel projects, and Supabase project, and the exact env vars to set.
-- Or I can continue scaffolding more detailed app boilerplate (routing, TypeScript, CI) — tell me which.
+### Demo mode:
+```
+/api/demo/restaurant
+/api/demo/menus
+/api/demo/faqs
+```
 
 ---
 
-**Development Workflow (detailed)**
+## 6. ChatWidget Behavior
 
-1. Open the project in the devcontainer
-
-- In VS Code, choose `Remote - Containers: Reopen in Container` (or `Dev Containers: Reopen in Container`). The container image defined in `.devcontainer/devcontainer.json` is used.
-- The devcontainer will run `npm install` automatically (postCreateCommand). If you change dependencies, re-run `npm install` inside the container.
-
-2. Install dependencies (one-time per machine)
-
-```bash
-cd /workspace
-npm install
-```
-
-3. Running services
-
-- Recommended single-terminal start (dev):
-
-```bash
-cd /workspace
-npm run dev
-```
-
-This runs the Admin, Client, and API concurrently (root `dev` script uses `concurrently`).
-
-- If you prefer separate terminals (one per service):
-
-Admin:
-
-```bash
-cd /workspace/apps/admin
-npm install
-npm run dev
-```
-
-Client:
-
-```bash
-cd /workspace/apps/client
-npm install
-npm run dev
-```
-
-API:
-
-```bash
-cd /workspace/packages/api
-npm install
-npm run dev
-```
-
-4. Environment variables (.env)
-
-- Template files are provided at `apps/admin/.env.example`, `apps/client/.env.example`, and `packages/api/.env.example`.
-- To create local secrets, copy the example files to the actual env files:
-
-```bash
-cp packages/api/.env.example packages/api/.env
-cp apps/admin/.env.example apps/admin/.env.local
-cp apps/client/.env.example apps/client/.env.local
-```
-
-- Edit the created `.env` / `.env.local` files and paste real keys (Supabase, OpenAI). Do not commit these files — they are ignored by `.gitignore`.
-
-5. Adding or editing restaurant data (local demo)
-
-- The project includes demo JSON at `packages/api/demo/windmill.json`. Use the API demo endpoints to load this data:
+The widget uses:
 
 ```
-GET /api/demo/restaurant
-GET /api/demo/menus
-GET /api/demo/faqs
+NEXT_PUBLIC_API_BASE
 ```
 
-- For working with Supabase, create a local Supabase project or use a hosted instance and set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `packages/api/.env`.
+If set → `${NEXT_PUBLIC_API_BASE}/api/chat`  
+If missing → defaults to same-origin `/api/chat`  
 
-6. Git and sync workflow (work across multiple machines)
-
-- Commit frequently and push to a remote (GitHub) as the canonical backup.
-
-Simple sequence:
-
-```bash
-git add -A
-git commit -m "Your message"
-git push origin main
-```
-
-- On the other machine:
-
-```bash
-git pull origin main
-# Reopen in devcontainer and run npm install if needed
-```
-
-- Use branches for features and pull requests to avoid conflicts.
-
-7. Backups and snapshots
-
-- After a stable state, create a tag to mark the snapshot:
-
-```bash
-git tag -a v0.1 -m "devcontainer snapshot"
-git push origin v0.1
-```
-
-8. Troubleshooting
-
-- If ports are in use, list listeners:
-
-```bash
-ss -ltnp | grep -E ':3000|:3001|:4000' || true
-```
-
-- Kill a process by PID if needed:
-
-```bash
-kill <PID>
-```
-
-9. Working on both machines (summary)
-
-- Keep `.env` secrets local per machine. Do not commit.
-- Use `git push` / `git pull` to move code changes between machines.
-- Reopen the repository in the devcontainer after pulling new code to ensure the environment is current.
-
-**AI Agent Workflow Rules — Server Restart Handling**
-
-- **Policy:** The AI agent must not restart, stop, or otherwise control any local development servers (Next.js, API server, or other) without explicit user permission.
-- **When a change requires a restart:** the agent will (a) add and commit the code changes, (b) provide the exact command(s) the user should run to restart the affected service(s), and (c) provide a short re-entry prompt describing what logs or outputs to collect and where to paste them back into the conversation.
-- **When runtime logs are needed:** the agent will add targeted debug logging and clearly indicate the exact restart and log-capture commands for the user to run. The agent will not execute the restart itself.
-- **Exceptions:** None. Always ask before performing any action that restarts or stops user services.
-
-The following rules are the authoritative, permanent workflow the AI agent will follow in this repository. Do not change these without explicit consent from the repository maintainer.
-
-1. Never restart any server, process, or service on your own.
-   - If a restart is required, the agent must pause immediately and notify the user.
-
-2. Before the user performs a restart, the agent must:
-   - State the exact task it was working on.
-   - Explain exactly why a restart is necessary.
-   - Confirm whether `README.md` already contains the restart workflow rules; if not, update it immediately.
-
-3. When a restart is required, the agent must provide BOTH restart choices and let the user decide:
-   - (A) Reopen the Dev Container (preferred clean method).
-   - (B) Run manual restart commands in the terminal without reopening the container.
-   - The agent must not assume which method the user will use — always ask.
-
-4. After offering the restart options, the agent must generate a “POST-RESTART RE-SYNC PROMPT” for the user to paste back into the chat once the restart is complete.
-
-5. The POST-RESTART RE-SYNC PROMPT must ALWAYS follow this exact template (do not alter):
-
-   ---------------------------------------------------------
-   POST-RESTART RE-SYNC PROMPT (TEMPLATE — DO NOT ALTER)
-
-   “I restarted the server/container. Resume with the following context:
-
-   • Last task you were working on:
-     <summarize the task>
-
-   • Steps you already completed:
-     <list each completed step>
-
-   • The next step you need to continue with:
-     <state the exact next action>
-
-   • Files, paths, or variables you should keep in mind:
-     <list any required context such as file names, endpoint URLs, env vars>
-
-   Resume exactly from here without repeating steps or executing ahead.”
-   ---------------------------------------------------------
-
-6. After giving the Re-Sync Prompt, the agent must stop all actions and wait. The agent must not run commands, write files, or continue until the user pastes the Re-Sync Prompt back after the restart.
-
-7. After the user restarts and pastes the Re-Sync Prompt back, the agent must:
-   - Resume exactly where it left off.
-   - Not redo any finished steps.
-   - Not skip ahead.
-   - Continue working normally from that point.
-
-8. These rules apply permanently to every future action in this workspace.
-
-When these rules are saved to `README.md`, the agent will pause and report it is ready for the next step.
+UUID → sends `restaurant_id`  
+Non-UUID → sends `restaurant_slug`
 
 ---
+
+## 7. Demo Mode
+
+When Supabase configuration is missing or errors occur:
+
+- Static `windmill.json` is used  
+- Demo restaurant ID is slug-like (`windmill-creek`)  
+- The system prompt is built entirely from JSON  
+
+---
+
+## 8. Multi-Machine Behavior
+
+If this repo is used across machines with different OS usernames, cached file permissions may break script executability.
+
+Fix:  
+Use **Dev Containers → Rebuild Container**.
+
+---
+
+## 9. Development Commands
+
+Inside the container:
+
+```
+npm install      # auto-run by postCreate
+npm run dev      # auto-run by startup script
+```
+
+Outside the container:  
+Do not run dev commands.
+
+---
+
+# README COMPLETE

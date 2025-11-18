@@ -1,0 +1,173 @@
+*** Begin Patch
+*** Update File: /workspace/packages/api/index.js
+@@
+-    // Demo endpoints (serve demo JSON when requested)
+-    if (req.url === "/api/demo/restaurant" && req.method === "GET") {
+-      try {
+-        const demoPath = path.join(__dirname, "demo", "windmill.json");
+-        const txt = await fsReadFile(demoPath, "utf8");
+-        const json = JSON.parse(txt);
+-        sendJson(res, 200, json.restaurant);
+-      } catch (e) {
+-        sendJson(res, 500, { error: String(e) });
+-      }
+-      return;
+-    }
+-
+-    if (req.url === "/api/demo/faqs" && req.method === "GET") {
+-      try {
+-        const demoPath = path.join(__dirname, "demo", "windmill.json");
+-        const txt = await fsReadFile(demoPath, "utf8");
+-        const json = JSON.parse(txt);
+-        sendJson(res, 200, json.faqs);
+-      } catch (e) {
+-        sendJson(res, 500, { error: String(e) });
+-      }
+-      return;
+-    }
+-
+-    if (req.url === "/api/demo/menus" && req.method === "GET") {
+-      try {
+-        const demoPath = path.join(__dirname, "demo", "windmill.json");
+-        const txt = await fsReadFile(demoPath, "utf8");
+-        const json = JSON.parse(txt);
+-        sendJson(res, 200, json.menus);
+-      } catch (e) {
+-        sendJson(res, 500, { error: String(e) });
+-      }
+-      return;
+-    }
++    // Note: demo endpoints removed — the server now relies exclusively on Supabase.
+@@
+-            } catch (e) {
+-              // If Supabase fails, fall back to demo JSON below
+-              try {
+-                const demoPath = path.join(__dirname, "demo", "windmill.json");
+-                const txt = await fsReadFile(demoPath, "utf8");
+-                const json = JSON.parse(txt);
+-                if (json.restaurant) {
+-                  system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+-                }
+-                if (json.menus) {
+-                  system += "\nMenu items:\n";
+-                  for (const menu of json.menus) {
+-                    system += `-- ${menu.title}: `;
+-                    const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+-                    system += names.join(", ") + "\n";
+-                  }
+-                }
+-                if (json.faqs) {
+-                  system += "\nFAQs:\n";
+-                  for (const f of json.faqs) {
+-                    system += `Q: ${f.question} A: ${f.answer}\n`;
+-                  }
+-                }
+-              } catch {
+-                // ignore demo read errors
+-              }
+-            }
+-          } else {
+-            // Supabase not configured: use demo JSON
+-            try {
+-              const demoPath = path.join(__dirname, "demo", "windmill.json");
+-              const txt = await fsReadFile(demoPath, "utf8");
+-              const json = JSON.parse(txt);
+-              if (json.restaurant) {
+-                system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+-              }
+-              if (json.menus) {
+-                system += "\nMenu items:\n";
+-                for (const menu of json.menus) {
+-                  system += `-- ${menu.title}: `;
+-                  const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+-                  system += names.join(", ") + "\n";
+-                }
+-              }
+-              if (json.faqs) {
+-                system += "\nFAQs:\n";
+-                for (const f of json.faqs) {
+-                  system += `Q: ${f.question} A: ${f.answer}\n`;
+-                }
+-              }
+-            } catch {
+-              // ignore demo read errors
+-            }
+-          }
++            } catch (e) {
++              // Supabase query failed — return error (no demo fallback)
++              console.error("Supabase fetch failed in /chat:", e);
++              sendJson(res, 502, { error: "Supabase fetch failed" });
++              return;
++            }
++          } else {
++            // Supabase not configured — fail fast
++            sendJson(res, 500, { error: "Supabase not configured" });
++            return;
++          }
+         }
+@@
+-            } catch (e) {
+-              try {
+-                const demoPath = path.join(__dirname, "demo", "windmill.json");
+-                const txt = await fsReadFile(demoPath, "utf8");
+-                const json = JSON.parse(txt);
+-                if (json.restaurant) {
+-                  system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+-                }
+-                if (json.menus) {
+-                  system += "\nMenu items:\n";
+-                  for (const menu of json.menus) {
+-                    system += `-- ${menu.title}: `;
+-                    const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+-                    system += names.join(", ") + "\n";
+-                  }
+-                }
+-                if (json.faqs) {
+-                  system += "\nFAQs:\n";
+-                  for (const f of json.faqs) {
+-                    system += `Q: ${f.question} A: ${f.answer}\n`;
+-                  }
+-                }
+-              } catch {
+-                // ignore demo read errors
+-              }
+-            }
+-          } else {
+-            try {
+-              const demoPath = path.join(__dirname, "demo", "windmill.json");
+-              const txt = await fsReadFile(demoPath, "utf8");
+-              const json = JSON.parse(txt);
+-              if (json.restaurant) {
+-                system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+-              }
+-              if (json.menus) {
+-                system += "\nMenu items:\n";
+-                for (const menu of json.menus) {
+-                  system += `-- ${menu.title}: `;
+-                  const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+-                  system += names.join(", ") + "\n";
+-                }
+-              }
+-              if (json.faqs) {
+-                system += "\nFAQs:\n";
+-                for (const f of json.faqs) {
+-                  system += `Q: ${f.question} A: ${f.answer}\n`;
+-                }
+-              }
+-            } catch {
+-              // ignore demo read errors
+-            }
+-          }
++            } catch (e) {
++              // Supabase query failed — return error (no demo fallback)
++              console.error("Supabase fetch failed in /api/chat:", e);
++              sendJson(res, 502, { error: "Supabase fetch failed" });
++              return;
++            }
++          } else {
++            // Supabase not configured — fail fast
++            sendJson(res, 500, { error: "Supabase not configured" });
++            return;
++          }
+         }
+*** End Patch

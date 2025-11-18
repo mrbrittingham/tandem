@@ -5,4 +5,5 @@
   },
   "editor.formatOnSave": true
   ,"chat.agent.projectInstructionsFile": ".agent-instructions.md"
+  ,"chat.editor.blockRendering": false
 }

@@ -90,6 +90,23 @@ async function resolveRestaurantUuid(value) {
   return null;
 }
 
+// Fetch optional per-restaurant contact/fallback settings.
+const fetchContactSettings = async (rid) => {
+  if (!rid) return null;
+  if (!SUPABASE_URL || !(SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY)) return null;
+  try {
+    const r = await supabaseFetch(`/rest/v1/restaurants?id=eq.${encodeURIComponent(rid)}&select=contact_fallback_enabled,contact_fallback_message`);
+    const row = Array.isArray(r) && r.length ? r[0] : null;
+    if (!row) return null;
+    return {
+      fallback_enabled: !!row.contact_fallback_enabled,
+      fallback_message: row.contact_fallback_message || null,
+    };
+  } catch (e) {
+    return null;
+  }
+};
+
 const openaiChat = async ({ message, system = null }) => {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
   const url = "https://api.openai.com/v1/chat/completions";
@@ -153,42 +170,9 @@ const requestHandler = async (req, res) => {
       return;
     }
 
-    // Demo endpoints (serve demo JSON when requested)
-    if (req.url === "/api/demo/restaurant" && req.method === "GET") {
-      try {
-        const demoPath = path.join(__dirname, "demo", "windmill.json");
-        const txt = await fsReadFile(demoPath, "utf8");
-        const json = JSON.parse(txt);
-        sendJson(res, 200, json.restaurant);
-      } catch (e) {
-        sendJson(res, 500, { error: String(e) });
-      }
-      return;
-    }
-
-    if (req.url === "/api/demo/faqs" && req.method === "GET") {
-      try {
-        const demoPath = path.join(__dirname, "demo", "windmill.json");
-        const txt = await fsReadFile(demoPath, "utf8");
-        const json = JSON.parse(txt);
-        sendJson(res, 200, json.faqs);
-      } catch (e) {
-        sendJson(res, 500, { error: String(e) });
-      }
-      return;
-    }
-
-    if (req.url === "/api/demo/menus" && req.method === "GET") {
-      try {
-        const demoPath = path.join(__dirname, "demo", "windmill.json");
-        const txt = await fsReadFile(demoPath, "utf8");
-        const json = JSON.parse(txt);
-        sendJson(res, 200, json.menus);
-      } catch (e) {
-        sendJson(res, 500, { error: String(e) });
-      }
-      return;
-    }
+    // NOTE: Demo endpoints and demo JSON fallbacks were removed to
+    // enforce using Supabase as the single source of truth. If Supabase
+    // is not configured or fails, the server will return an error.
 
     // GET /api/faqs -> returns faqs
     if (req.url === "/api/faqs" && req.method === "GET") {
@@ -273,59 +257,24 @@ const requestHandler = async (req, res) => {
                   system += `Q: ${f.question} A: ${f.answer}\n`;
                 }
               }
-            } catch (e) {
-              // If Supabase fails, fall back to demo JSON below
+
+              // Optional per-restaurant contact fallback settings
               try {
-                const demoPath = path.join(__dirname, "demo", "windmill.json");
-                const txt = await fsReadFile(demoPath, "utf8");
-                const json = JSON.parse(txt);
-                if (json.restaurant) {
-                  system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+                const contact = await fetchContactSettings(rid);
+                if (contact && contact.fallback_enabled) {
+                  const msg = contact.fallback_message || "Please contact the restaurant via their website or phone.";
+                  system = (system || "") + `\nContact fallback: If contact info is requested but not available, reply: "${msg}"\n`;
                 }
-                if (json.menus) {
-                  system += "\nMenu items:\n";
-                  for (const menu of json.menus) {
-                    system += `-- ${menu.title}: `;
-                    const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
-                    system += names.join(", ") + "\n";
-                  }
-                }
-                if (json.faqs) {
-                  system += "\nFAQs:\n";
-                  for (const f of json.faqs) {
-                    system += `Q: ${f.question} A: ${f.answer}\n`;
-                  }
-                }
-              } catch {
-                // ignore demo read errors
+              } catch (e) {
+                // ignore contact settings errors
               }
+            } catch (e) {
+              sendJson(res, 502, { error: "Supabase fetch failed" });
+              return;
             }
           } else {
-            // Supabase not configured: use demo JSON
-            try {
-              const demoPath = path.join(__dirname, "demo", "windmill.json");
-              const txt = await fsReadFile(demoPath, "utf8");
-              const json = JSON.parse(txt);
-              if (json.restaurant) {
-                system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
-              }
-              if (json.menus) {
-                system += "\nMenu items:\n";
-                for (const menu of json.menus) {
-                  system += `-- ${menu.title}: `;
-                  const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
-                  system += names.join(", ") + "\n";
-                }
-              }
-              if (json.faqs) {
-                system += "\nFAQs:\n";
-                for (const f of json.faqs) {
-                  system += `Q: ${f.question} A: ${f.answer}\n`;
-                }
-              }
-            } catch {
-              // ignore demo read errors
-            }
+            sendJson(res, 500, { error: "Supabase is not configured" });
+            return;
           }
         }
 
@@ -389,57 +338,24 @@ const requestHandler = async (req, res) => {
                   system += `Q: ${f.question} A: ${f.answer}\n`;
                 }
               }
-            } catch (e) {
+
+              // Optional per-restaurant contact fallback settings
               try {
-                const demoPath = path.join(__dirname, "demo", "windmill.json");
-                const txt = await fsReadFile(demoPath, "utf8");
-                const json = JSON.parse(txt);
-                if (json.restaurant) {
-                  system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
+                const contact = await fetchContactSettings(rid);
+                if (contact && contact.fallback_enabled) {
+                  const msg = contact.fallback_message || "Please contact the restaurant via their website or phone.";
+                  system = (system || "") + `\nContact fallback: If contact info is requested but not available, reply: "${msg}"\n`;
                 }
-                if (json.menus) {
-                  system += "\nMenu items:\n";
-                  for (const menu of json.menus) {
-                    system += `-- ${menu.title}: `;
-                    const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
-                    system += names.join(", ") + "\n";
-                  }
-                }
-                if (json.faqs) {
-                  system += "\nFAQs:\n";
-                  for (const f of json.faqs) {
-                    system += `Q: ${f.question} A: ${f.answer}\n`;
-                  }
-                }
-              } catch {
-                // ignore demo read errors
+              } catch (e) {
+                // ignore contact settings errors
               }
+            } catch (e) {
+              sendJson(res, 502, { error: "Supabase fetch failed" });
+              return;
             }
           } else {
-            try {
-              const demoPath = path.join(__dirname, "demo", "windmill.json");
-              const txt = await fsReadFile(demoPath, "utf8");
-              const json = JSON.parse(txt);
-              if (json.restaurant) {
-                system = `You are an assistant for ${json.restaurant.name} (${json.restaurant.short_name}). `;
-              }
-              if (json.menus) {
-                system += "\nMenu items:\n";
-                for (const menu of json.menus) {
-                  system += `-- ${menu.title}: `;
-                  const names = menu.items.map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
-                  system += names.join(", ") + "\n";
-                }
-              }
-              if (json.faqs) {
-                system += "\nFAQs:\n";
-                for (const f of json.faqs) {
-                  system += `Q: ${f.question} A: ${f.answer}\n`;
-                }
-              }
-            } catch {
-              // ignore demo read errors
-            }
+            sendJson(res, 500, { error: "Supabase is not configured" });
+            return;
           }
         }
 
