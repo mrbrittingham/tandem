@@ -49,4 +49,21 @@ else
   echo "Processes remain. Rerun with --force to force-kill them."
 fi
 
-exit 0
+# Confirm no matching processes remain
+sleep 1
+LEFTOVER=$(pgrep -af "next dev|node index.js|vite|webpack-dev-server|parcel" || true)
+if [ -z "$(echo "$LEFTOVER" | sed -n '1p')" ]; then
+  echo "All dev processes stopped."
+  exit 0
+fi
+
+echo "Warning: Some dev processes still running:" 
+echo "$LEFTOVER"
+if [ "$FORCE" -eq 0 ]; then
+  echo "Run './tandem-stop.sh --force' to force-kill remaining processes."
+  exit 1
+else
+  echo "Force mode was used but some processes remain; manual inspection recommended."
+  exit 1
+fi
+
