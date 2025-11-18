@@ -25,5 +25,10 @@ kill -9 $(lsof -t -i:4000) 2>/dev/null || true
 pkill -f "next dev" 2>/dev/null || true
 pkill -f "node index.js" 2>/dev/null || true
 
-echo "Starting Tandem dev services..."
+echo "Starting Tandem dev services (API only)..."
+
+# Start only the API for debugging (do not start admin/client here).
+# Run npm install to ensure dependencies are present, then start dev server.
+cd /workspace/packages/api
+npm install
 npm run dev

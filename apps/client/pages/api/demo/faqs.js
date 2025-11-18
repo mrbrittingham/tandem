@@ -1,7 +1,13 @@
 import fs from "fs";
 import path from "path";
 
-const DEMO_PATH = path.join(process.cwd(), "apps", "client", "data", "windmill.json");
+const DEMO_PATH = path.join(
+  process.cwd(),
+  "apps",
+  "client",
+  "data",
+  "windmill.json",
+);
 
 export default async function handler(req, res) {
   try {

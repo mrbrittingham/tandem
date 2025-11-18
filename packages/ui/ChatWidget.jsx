@@ -9,9 +9,13 @@ export default function ChatWidget({ restaurantId } = {}) {
   const [unreadCount, setUnreadCount] = useState(1); // start at 1 to show the badge on first load
 
   // Prefer the explicit NEXT_PUBLIC_API_URL env var, fall back to NEXT_PUBLIC_API_BASE for backwards compatibility
-  const _envUrl = typeof window !== "undefined" && (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE)
-    ? (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE).replace(/\/$/, "")
-    : "";
+  const _envUrl =
+    typeof window !== "undefined" &&
+    (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE)
+      ? (
+          process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE
+        ).replace(/\/$/, "")
+      : "";
   const API_BASE = _envUrl;
 
   const COLORS = {
@@ -24,74 +28,95 @@ export default function ChatWidget({ restaurantId } = {}) {
   };
 
   // Replace em dashes and double dashes with a colon per project rule
-  function replaceEmDashes(s) {
-    return s ? s.replace(/—|--/g, ':') : s;
-  }
+  const replaceEmDashes = (s) => (s ? s.replace(/—|--/g, ":") : s);
 
-  function escapeHtml(unsafe) {
-    return String(unsafe)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+  const escapeHtml = (unsafe) =>
+    String(unsafe)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
   // Lightweight markdown -> safe HTML renderer supporting bold, italics, lists, and line breaks
-  function renderMarkdownToHtml(input) {
-    if (!input && input !== 0) return '';
+  const renderMarkdownToHtml = (input) => {
+    if (!input && input !== 0) return "";
     let s = String(input);
     s = replaceEmDashes(s);
 
     // Collapse duplicate blank lines
-    s = s.replace(/\n{3,}/g, '\n\n');
+    s = s.replace(/\n{3,}/g, "\n\n");
 
     // Escape HTML first
     s = escapeHtml(s);
 
     // Bold **text**
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     // Italic *text* (avoid interfering with bold)
-    s = s.replace(/\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+    s = s.replace(/\*(?!\*)([^*]+?)\*(?!\*)/g, "<em>$1</em>");
 
     const lines = s.split(/\r?\n/);
-    let out = '';
+    let out = "";
     let inUl = false;
     let inOl = false;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (/^[-*•]\s+/.test(line)) {
-        if (inOl) { out += '</ol>'; inOl = false; }
-        if (!inUl) { out += '<ul>'; inUl = true; }
-        const item = line.replace(/^[-*•]\s+/, '');
+        if (inOl) {
+          out += "</ol>";
+          inOl = false;
+        }
+        if (!inUl) {
+          out += "<ul>";
+          inUl = true;
+        }
+        const item = line.replace(/^[-*•]\s+/, "");
         out += `<li>${item}</li>`;
       } else if (/^\d+\.\s+/.test(line)) {
-        if (inUl) { out += '</ul>'; inUl = false; }
-        if (!inOl) { out += '<ol>'; inOl = true; }
-        const item = line.replace(/^\d+\.\s+/, '');
+        if (inUl) {
+          out += "</ul>";
+          inUl = false;
+        }
+        if (!inOl) {
+          out += "<ol>";
+          inOl = true;
+        }
+        const item = line.replace(/^\d+\.\s+/, "");
         out += `<li>${item}</li>`;
-      } else if (line === '') {
-        if (inUl) { out += '</ul>'; inUl = false; }
-        if (inOl) { out += '</ol>'; inOl = false; }
-        out += '<br/>';
+      } else if (line === "") {
+        if (inUl) {
+          out += "</ul>";
+          inUl = false;
+        }
+        if (inOl) {
+          out += "</ol>";
+          inOl = false;
+        }
+        out += "<br/>";
       } else {
-        if (inUl) { out += '</ul>'; inUl = false; }
-        if (inOl) { out += '</ol>'; inOl = false; }
+        if (inUl) {
+          out += "</ul>";
+          inUl = false;
+        }
+        if (inOl) {
+          out += "</ol>";
+          inOl = false;
+        }
         out += `<p>${line}</p>`;
       }
     }
 
-    if (inUl) out += '</ul>';
-    if (inOl) out += '</ol>';
+    if (inUl) out += "</ul>";
+    if (inOl) out += "</ol>";
 
     return out;
-  }
-
+  };
 
   const scrollToBottom = () => {
     // If the element exists, update scroll position.
-    if (msgsRef.current) msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
+    if (msgsRef.current)
+      msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
   };
 
   useEffect(() => {
@@ -113,9 +138,9 @@ export default function ChatWidget({ restaurantId } = {}) {
       const url = API_BASE ? `${API_BASE}/api/chat` : "/chat";
       const payload = { message: content };
       // restaurantId may be a slug or a uuid; send slug as `restaurant_slug` and uuid as `restaurant_id`.
-      function isUUID(v) {
-        return typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
-      }
+      const isUUID = (v) =>
+        typeof v === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
       if (restaurantId) {
         if (isUUID(restaurantId)) payload.restaurant_id = restaurantId;
         else payload.restaurant_slug = restaurantId;
@@ -162,7 +187,9 @@ export default function ChatWidget({ restaurantId } = {}) {
   const FONT_FAMILY =
     "Inter, system-ui, -apple-system, \"Segoe UI\", Roboto, 'Helvetica Neue', Arial";
   const avatarDisplay = open ? "none" : "block";
-  const panelTransform = open ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)";
+  const panelTransform = open
+    ? "translateY(0) scale(1)"
+    : "translateY(8px) scale(0.98)";
 
   const styles = {
     root: {
@@ -408,9 +435,11 @@ export default function ChatWidget({ restaurantId } = {}) {
                   />
                 )}
                 <div style={bubbleStyle}>
-                  {m.role === 'assistant' ? (
+                  {m.role === "assistant" ? (
                     <div
-                      dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(String(m.text || '')) }}
+                      dangerouslySetInnerHTML={{
+                        __html: renderMarkdownToHtml(String(m.text || "")),
+                      }}
                     />
                   ) : (
                     // user messages rendered as plain text

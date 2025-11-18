@@ -12,7 +12,8 @@ export default function EmbedGenerator() {
     <div style={{ padding: 24, fontFamily: "Inter, system-ui, -apple-system" }}>
       <h1>Embed Generator</h1>
       <p>
-        Copy the snippet below into any external website. Replace <code>REPLACE_ME</code>
+        Copy the snippet below into any external website. Replace{" "}
+        <code>REPLACE_ME</code>
         with your restaurant id.
       </p>
 
@@ -20,7 +21,12 @@ export default function EmbedGenerator() {
         <textarea
           readOnly
           value={embedCode}
-          style={{ width: "100%", height: 120, fontFamily: "monospace", fontSize: 14 }}
+          style={{
+            width: "100%",
+            height: 120,
+            fontFamily: "monospace",
+            fontSize: 14,
+          }}
         />
       </div>
     </div>

@@ -1,7 +1,13 @@
 import fs from "fs";
 import path from "path";
 
-const DEMO_PATH = path.join(process.cwd(), "apps", "client", "data", "windmill.json");
+const DEMO_PATH = path.join(
+  process.cwd(),
+  "apps",
+  "client",
+  "data",
+  "windmill.json",
+);
 
 async function readDemo() {
   try {
@@ -70,29 +76,43 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST")
+    return res.status(405).json({ error: "Method not allowed" });
 
   const body = req.body;
-  if (!body || !body.message) return res.status(400).json({ error: "message is required" });
+  if (!body || !body.message)
+    return res.status(400).json({ error: "message is required" });
 
   try {
     let system = null;
     if (body.restaurant_id) {
       // Prefer Supabase when configured; else fallback to demo JSON
-      if (process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+      if (
+        process.env.SUPABASE_URL &&
+        (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
+      ) {
         try {
           const rid = encodeURIComponent(body.restaurant_id);
-          const rest = await supabaseFetch(`/rest/v1/restaurants?id=eq.${rid}&select=*`);
-          const restaurant = Array.isArray(rest) && rest.length ? rest[0] : null;
-          const menus = await supabaseFetch(`/rest/v1/menus?restaurant_id=eq.${rid}&select=*,menu_items(*)`);
-          const faqs = await supabaseFetch(`/rest/v1/faqs?restaurant_id=eq.${rid}&select=*`);
+          const rest = await supabaseFetch(
+            `/rest/v1/restaurants?id=eq.${rid}&select=*`,
+          );
+          const restaurant =
+            Array.isArray(rest) && rest.length ? rest[0] : null;
+          const menus = await supabaseFetch(
+            `/rest/v1/menus?restaurant_id=eq.${rid}&select=*,menu_items(*)`,
+          );
+          const faqs = await supabaseFetch(
+            `/rest/v1/faqs?restaurant_id=eq.${rid}&select=*`,
+          );
           if (restaurant) {
             system = `You are an assistant for ${restaurant.name} (${restaurant.short_name || restaurant.name}). `;
             if (Array.isArray(menus) && menus.length) {
               system += "\nMenu items:\n";
               for (const menu of menus) {
                 system += `-- ${menu.title}: `;
-                const names = (menu.menu_items || []).map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                const names = (menu.menu_items || []).map(
+                  (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
+                );
                 system += names.join(", ") + "\n";
               }
             }
@@ -113,7 +133,9 @@ export default async function handler(req, res) {
               system += "\nMenu items:\n";
               for (const menu of demo.menus) {
                 system += `-- ${menu.title}: `;
-                const names = (menu.items || []).map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+                const names = (menu.items || []).map(
+                  (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
+                );
                 system += names.join(", ") + "\n";
               }
             }
@@ -133,7 +155,9 @@ export default async function handler(req, res) {
             system += "\nMenu items:\n";
             for (const menu of demo.menus) {
               system += `-- ${menu.title}: `;
-              const names = (menu.items || []).map((i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`);
+              const names = (menu.items || []).map(
+                (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
+              );
               system += names.join(", ") + "\n";
             }
           }
@@ -150,39 +174,45 @@ export default async function handler(req, res) {
     // If OpenAI API key is missing, return a helpful demo placeholder
     // We'll still format the placeholder through formatBotReply for consistency
     function replaceEmDashes(s) {
-      return s ? s.replace(/—|--/g, ':') : s;
+      return s ? s.replace(/—|--/g, ":") : s;
     }
 
     function collapseBlankLines(s) {
-      return s.replace(/\n{3,}/g, '\n\n');
+      return s.replace(/\n{3,}/g, "\n\n");
     }
 
     function trimLines(s) {
-      return s.split(/\r?\n/).map((l) => l.trimRight()).join('\n').trim();
+      return s
+        .split(/\r?\n/)
+        .map((l) => l.trimRight())
+        .join("\n")
+        .trim();
     }
 
     function formatMenuItem(item) {
       const lines = [];
       lines.push(`**${item.name}**`);
       if (item.description) lines.push(`• ${item.description}`);
-      if (item.price !== undefined && item.price !== null) lines.push(`• Price: $${item.price}`);
+      if (item.price !== undefined && item.price !== null)
+        lines.push(`• Price: $${item.price}`);
       if (item.notes) {
         // try to extract pairing from notes
         const m = /Pairing:\s*(.*)/i.exec(item.notes);
         if (m) lines.push(`• Pairing: ${m[1]}`);
       }
-      return lines.join('\n');
+      return lines.join("\n");
     }
 
     async function formatBotReply(modelReply) {
-      let r = modelReply || '';
+      let r = modelReply || "";
       r = String(r);
       r = r.trim();
       r = replaceEmDashes(r);
       r = collapseBlankLines(r);
 
       // If empty after trimming, return fallback
-      if (!r) return 'I am here to help. Try asking about the menu, hours, or reservations.';
+      if (!r)
+        return "I am here to help. Try asking about the menu, hours, or reservations.";
 
       // Attempt to load demo data for menu/faq lookups
       const demo = await readDemo();
@@ -192,7 +222,11 @@ export default async function handler(req, res) {
         for (const menu of demo.menus) {
           if (!menu.items) continue;
           for (const item of menu.items) {
-            if (item && item.name && item.name.toLowerCase() === r.toLowerCase()) {
+            if (
+              item &&
+              item.name &&
+              item.name.toLowerCase() === r.toLowerCase()
+            ) {
               return replaceEmDashes(formatMenuItem(item));
             }
           }
@@ -203,26 +237,33 @@ export default async function handler(req, res) {
       const qMatch = /^Q:\s*(.+?)\s*(?:A:|$)/i.exec(r);
       if (qMatch) {
         const question = qMatch[1].trim();
-        const answer = r.replace(/^Q:\s*.+?\s*(?:A:)?\s*/i, '').trim();
-        const out = `**${question}**\n${answer || ''}`.replace(/—|--/g, ':');
+        const answer = r.replace(/^Q:\s*.+?\s*(?:A:)?\s*/i, "").trim();
+        const out = `**${question}**\n${answer || ""}`.replace(/—|--/g, ":");
         return collapseBlankLines(out);
       }
 
       if (demo && Array.isArray(demo.faqs)) {
         for (const f of demo.faqs) {
-          if (f.question && r.toLowerCase().startsWith(f.question.toLowerCase())) {
-            const out = `**${f.question}**\n${f.answer || ''}`.replace(/—|--/g, ':');
+          if (
+            f.question &&
+            r.toLowerCase().startsWith(f.question.toLowerCase())
+          ) {
+            const out = `**${f.question}**\n${f.answer || ""}`.replace(
+              /—|--/g,
+              ":",
+            );
             return collapseBlankLines(out);
           }
         }
       }
 
       // Default: return trimmed, em-dash-replaced reply
-      return trimLines(r).replace(/—|--/g, ':');
+      return trimLines(r).replace(/—|--/g, ":");
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      const placeholder = 'Hi! I\u2019m your demo chatbot. Add API keys to enable real responses.';
+      const placeholder =
+        "Hi! I\u2019m your demo chatbot. Add API keys to enable real responses.";
       const formatted = await formatBotReply(placeholder);
       return res.status(200).json({ reply: formatted });
     }

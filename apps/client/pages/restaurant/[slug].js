@@ -9,7 +9,9 @@ export default function RestaurantPage() {
   const [restaurant, setRestaurant] = useState(null);
   const [menus, setMenus] = useState([]);
   const [faqs, setFaqs] = useState([]);
-  const [heroSrc, setHeroSrc] = useState(slug ? `/restaurants/${slug}/hero-image.jpg` : "/restaurants/hero.svg");
+  const [heroSrc, setHeroSrc] = useState(
+    slug ? `/restaurants/${slug}/hero-image.jpg` : "/restaurants/hero.svg",
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,7 +24,9 @@ export default function RestaurantPage() {
           return;
         }
 
-        const rRes = await fetch(`/api/restaurant?id=${encodeURIComponent(slug)}`);
+        const rRes = await fetch(
+          `/api/restaurant?id=${encodeURIComponent(slug)}`,
+        );
         if (!rRes.ok) {
           console.error("/api/restaurant returned non-OK", rRes.status);
           throw new Error("Restaurant endpoint unavailable");
@@ -33,7 +37,9 @@ export default function RestaurantPage() {
 
         // Fetch menus and faqs for this restaurant (only after restaurant fetch succeeds)
         try {
-          const mRes = await fetch(`/api/menus?restaurant=${encodeURIComponent(slug)}`);
+          const mRes = await fetch(
+            `/api/menus?restaurant=${encodeURIComponent(slug)}`,
+          );
           const menusJson = mRes.ok ? await mRes.json() : [];
           if (mounted) setMenus(menusJson);
         } catch {
@@ -41,7 +47,9 @@ export default function RestaurantPage() {
         }
 
         try {
-          const fRes = await fetch(`/api/faqs?restaurant=${encodeURIComponent(slug)}`);
+          const fRes = await fetch(
+            `/api/faqs?restaurant=${encodeURIComponent(slug)}`,
+          );
           const faqsJson = fRes.ok ? await fRes.json() : [];
           if (mounted) setFaqs(faqsJson);
         } catch {
@@ -71,9 +79,7 @@ export default function RestaurantPage() {
 
   if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
   if (!restaurant)
-    return (
-      <div style={{ padding: 24 }}>Failed to load restaurant data.</div>
-    );
+    return <div style={{ padding: 24 }}>Failed to load restaurant data.</div>;
 
   return (
     <div

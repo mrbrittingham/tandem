@@ -5,8 +5,7 @@ import { useState } from "react";
 export default function EmbedPage() {
   // Load NEXT_PUBLIC_WIDGET_ORIGIN safely
   const origin =
-    typeof process !== "undefined" &&
-    process.env.NEXT_PUBLIC_WIDGET_ORIGIN
+    typeof process !== "undefined" && process.env.NEXT_PUBLIC_WIDGET_ORIGIN
       ? process.env.NEXT_PUBLIC_WIDGET_ORIGIN.replace(/\/$/, "")
       : "";
 
@@ -35,8 +34,8 @@ export default function EmbedPage() {
 
       <p style={{ marginBottom: 16 }}>
         Copy the snippet below and paste it into any external website to embed
-        the Tandem chatbot widget. Replace{" "}
-        <code>REPLACE_ME</code> with your restaurant’s ID.
+        the Tandem chatbot widget. Replace <code>REPLACE_ME</code> with your
+        restaurant’s ID.
       </p>
 
       {/* Display the current resolved origin */}
