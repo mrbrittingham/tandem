@@ -1,0 +1,16 @@
+Symlink / package resolution inside devcontainer
+
+Command run from /workspace:
+- realpath node_modules/@tandem/ui-kit
+  -> /workspace/packages/ui-kit
+
+- realpath node_modules/ui
+  -> /workspace/packages/ui
+
+Interpretation:
+- npm workspaces correctly symlink local packages into node_modules.
+- Any import of "@tandem/ui-kit" resolves to the local workspace package at /workspace/packages/ui-kit.
+- Any import of "ui" from code that uses the jsconfig paths will conceptually resolve to /workspace/packages/ui (and realpath confirms this module exists under node_modules as a workspace symlink).
+
+Conclusion:
+- There are no stale or incorrect symlinks for @tandem/ui-kit or ui in node_modules; both point to the expected workspace package directories.

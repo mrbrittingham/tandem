@@ -1,0 +1,7 @@
+Next steps after 20251121-0305 run:
+- Wire the embed Shadow DOM to mount the real React-based TandemWidgetWrapper from @tandem/ui-kit instead of the current minimal DOM-based panel implementation.
+- Implement /api/public/chatbot-config in the shared API package and wire restaurantSlug/theme to real configuration data.
+- Complete admin dashboard wiring under apps/admin/pages/chatbot/[restaurantSlug].js and related API routes so per-restaurant embed snippets can be configured and previewed.
+- Add global CSS keyframes for tandem-notification-pop and typing-dot animations in ui-kit styles so the notification badge and typing dots animate as designed.
+- Perform a final visual pass against the Figma UI Kit on /restaurant/windmill-creek to verify spacing, typography, shadow, and radius details.
+- Optionally add Jest/Playwright or Storybook coverage for TandemWidgetWrapper, ChatTrigger, ChatWidget, and the embed snippet to guard against regressions.

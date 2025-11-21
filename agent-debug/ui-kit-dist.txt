@@ -1,0 +1,12 @@
+packages/ui-kit/dist overview
+
+Directory: /workspace/packages/ui-kit/dist
+- index.js
+- components/
+- lib/
+
+index.js:
+- Serves as the main entrypoint referenced by packages/ui-kit/package.json ("main": "dist/index.js").
+- Should re-export ChatWidget, ChatTrigger, and related components from the compiled TypeScript sources.
+
+Note: The presence of dist/index.js and compiled components confirms that `npm run build` for @tandem/ui-kit succeeded. Any consumer importing from "@tandem/ui-kit" will load from this dist output.

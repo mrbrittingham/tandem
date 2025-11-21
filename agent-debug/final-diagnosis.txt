@@ -1,0 +1,131 @@
+Final Diagnosis: Why packages/ui-kit changes do not appear in apps/client
+
+1) Workspace wiring and packages
+- Root workspace: /workspace
+  - package.json has workspaces: ["apps/*", "packages/*"].
+  - This correctly makes apps/client, packages/ui-kit, and packages/ui all part of the same npm workspace.
+- apps/client/package.json:
+  - Depends on "@tandem/ui-kit": "^0.0.0" (local workspace).
+- packages/ui-kit/package.json:
+  - name: "@tandem/ui-kit"
+  - main: "dist/index.js"
+  - types: "dist/index.d.ts"
+  - build: "tsc -p tsconfig.json"
+- packages/ui (legacy UI package):
+  - index.js exports:
+    - named: ChatWidget from "./ChatWidget.jsx" (legacy avatar-style widget)
+    - default: ChatWidgetPlaceholder
+
+Conclusion: workspace wiring is correct; both @tandem/ui-kit and ui are available as local workspace packages.
+
+2) Alias resolution and imports in apps/client
+- apps/client/jsconfig.json defines path aliases:
+  - "ui/*": ["../../packages/ui/*"]
+  - "ui": ["../../packages/ui"]
+- This means imports of "ui" in apps/client resolve to packages/ui, not @tandem/ui-kit.
+
+Key imports:
+- /workspace/apps/client/pages/restaurant/[slug].js:
+  - `import { ChatWidget } from "@tandem/ui-kit";`
+  - The Windmill Creek restaurant page uses the new kit directly.
+- Other pages (index.js, chat.js, demo/windmill-creek.js) import `ChatWidget` from "ui" and therefore still use the legacy widget from packages/ui.
+
+Conclusion: for the specific Windmill Creek restaurant page, the import path is already correct and points at @tandem/ui-kit; the alias only affects pages that still use "ui".
+
+3) Symlink resolution inside the devcontainer
+- Commands (from /workspace):
+  - realpath node_modules/@tandem/ui-kit -> /workspace/packages/ui-kit
+  - realpath node_modules/ui -> /workspace/packages/ui
+- Interpretation:
+  - npm workspace symlinks are correct; no stale or duplicate copies exist in node_modules.
+
+Conclusion: there is no evidence of node_modules pointing to a stale external copy; imports resolve to the current workspace sources.
+
+4) ui-kit dist output and exports
+- Directory /workspace/packages/ui-kit/dist contains:
+  - index.js
+  - components/
+  - lib/
+- dist/index.js content:
+  - `export { ThemeProvider, useTheme, windmillCreekTheme } from "./lib/theme-context";`
+  - `export { ChatWidget, ChatTrigger } from "./components/chat";`
+- dist/components/chat/index.js:
+  - `export { ChatWidget } from "./ChatWidget";`
+  - `export { ChatTrigger } from "./ChatTrigger";`
+- dist/components/chat/ChatTrigger.js is the new circular Figma-style trigger button, positioned fixed at bottom-right with theme colors.
+- dist/components/chat/ChatWidget.js is the new Figma-style chat widget implementation. It:
+  - Imports and uses ChatTrigger from "./ChatTrigger".
+  - Uses the Figma-based ChatHeader, UserBubble, AgentBubble, TypingIndicator, ChatInput.
+  - Handles `isOpen` state internally and renders ChatTrigger when closed and the panel when open.
+
+Conclusion: the built dist for @tandem/ui-kit correctly exports the new ChatWidget and ChatTrigger, and the main entrypoint index.js re-exports them. Any code importing { ChatWidget } from "@tandem/ui-kit" will receive this Figma-style implementation.
+
+5) Component collisions across packages
+- packages/ui (legacy) defines its own ChatWidget in ChatWidget.jsx and exports it from index.js.
+- packages/ui-kit defines a separate ChatWidget in src/components/chat/ChatWidget.tsx (compiled to dist/components/chat/ChatWidget.js).
+- apps/client pages:
+  - Restaurant page imports from "@tandem/ui-kit".
+  - Other demo and chat pages import from "ui".
+
+Conclusion: there are two distinct ChatWidget implementations, but for the restaurant page the active one is @tandem/ui-kit’s Figma-style widget, not the legacy one.
+
+6) Why the Figma UI may still not appear on the restaurant page
+Given the verified wiring:
+- Import in [slug].js uses `@tandem/ui-kit`.
+- @tandem/ui-kit’s dist clearly exports the new ChatWidget which itself uses the new ChatTrigger and Figma layout.
+- node_modules/@tandem/ui-kit resolves to /workspace/packages/ui-kit.
+
+Therefore, if you are still seeing an old-looking widget or older trigger on http://localhost:3000/restaurant/windmill-creek, the most likely causes are:
+
+A) Server not restarted after switching imports or rebuilding ui-kit
+- Turbopack caches the module graph and compiled output. If you changed imports in [slug].js from "ui" to "@tandem/ui-kit" or recently rebuilt ui-kit, but the dev server has not been restarted, Turbopack may still be serving an older compiled tree.
+
+B) Browser still showing a stale build (hot reload / cache)
+- If the dev server was at some point serving the old `ui`-based page, and the browser did not fully refresh after you switched to `@tandem/ui-kit`, you may be still looking at an older compiled bundle.
+
+C) Confusion with other routes
+- Other pages (/, /chat, /demo/windmill-creek) still import `ChatWidget` from "ui", so they will continue to show the legacy avatar-style widget and old trigger. It is easy to land on one of those and think the restaurant page is still outdated.
+
+Based on the on-disk state, there is no evidence that:
+- Next.js is importing a registry version of @tandem/ui-kit.
+- node_modules contains a shadow copy of the kit.
+- ui-kit’s dist lacks the new components.
+
+Everything points to the code for the restaurant page being correctly wired and the built kit exporting the Figma UI, so the remaining variable is the running dev server’s cached state and which route you are observing.
+
+7) Exact steps to see the new ui-kit changes
+To ensure you are definitely using the latest @tandem/ui-kit implementation on the Windmill Creek restaurant page:
+
+1) Verify that packages/ui-kit is built from the current sources
+- From inside the dev container:
+  - `cd /workspace/packages/ui-kit`
+  - `npm run build`
+
+2) Restart the client dev server so Turbopack drops any stale module graph
+- Mike, stop your current dev server.
+- Then run:
+  - `cd /workspace/apps/client`
+  - `npm run dev`
+
+3) In your browser
+- Hard-refresh the restaurant page:
+  - Go to: `http://localhost:3000/restaurant/windmill-creek`
+  - Use a full reload (e.g., Ctrl+Shift+R / Cmd+Shift+R) to bypass cache.
+- Open the browser console and confirm that you see the debug log from ui-kit ChatWidget (if still present in your source), e.g.:
+  - `[ui-kit ChatWidget] Figma-style widget source is now running`
+
+4) Distinguish routes using legacy ui
+- If you navigate to:
+  - `/` (apps/client/pages/index.js)
+  - `/chat`
+  - `/demo/windmill-creek`
+  those still import from "ui" and will show the legacy widget until you explicitly migrate their imports to `@tandem/ui-kit`.
+
+8) Root-cause summary in plain English
+- The monorepo wiring is correct and @tandem/ui-kit builds successfully to dist.
+- node_modules is correctly symlinked to the local @tandem/ui-kit package.
+- The Windmill Creek restaurant page imports ChatWidget from @tandem/ui-kit, while other pages still use the legacy `ui` package.
+- The new Figma-based ChatWidget and ChatTrigger **are** what @tandem/ui-kit exports from its dist/index.js.
+- Therefore, the only remaining explanation for not seeing the new Figma UI on the restaurant route is that your running dev server and/or browser is serving a stale build (from before the import swap / rebuild), or you are viewing a different route that still uses the legacy `ui` package.
+
+Once you rebuild ui-kit, restart the apps/client dev server, and hard-refresh the /restaurant/windmill-creek route, the Figma-based ChatWidget and its new ChatTrigger should be the ones rendered on that page.

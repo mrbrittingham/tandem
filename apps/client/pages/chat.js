@@ -1,6 +1,6 @@
 import React from "react";
 import { useRouter } from "next/router";
-import { ChatWidget } from "ui";
+import { ChatWidget } from "@tandem/ui-kit";
 
 export default function ChatPage() {
   const router = useRouter();

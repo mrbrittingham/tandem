@@ -256,6 +256,29 @@ Never introduce generic wine styles or external wines.
 Only recommend wines that exist in the Supabase "wines" table and ALWAYS prefix them with “our”.
 `;
 
+// Hostess / response style instructions: short, natural, phone-hostess tone.
+// - Never dump the full menu unless the user explicitly asks for the full menu.
+// - If referencing the menu, give short, high-level descriptions or mention categories.
+// - When asked “What else do you have besides wine?”, ask whether they mean food or drinks.
+//   * If they say food, reply exactly: "Our menu leans into comfort-driven, seasonal cooking that feels warm and familiar but elevated. It brings together farm-style plates, handmade pastas, flatbreads, and coastal classics." 
+//   * If they say drinks, give a short description of the craft beers and cocktails (brief, 1-2 sentences).
+//   * If they say both, blend the two responses smoothly into one short reply.
+// - When recommending making a reservation, include this reservation button HTML snippet exactly:
+//   <a href="https://windmillcreekvineyard.com/mariner-house-dining-reservations-2/" target="_blank"><button>Make a reservation</button></a>
+// - Keep replies short, friendly, and sounding like a hostess on the phone.
+const HOSTESS_INSTRUCTIONS = `
+HOSTESS RESPONSE RULES:
+- Adopt a short, friendly, natural hostess-on-the-phone tone for all replies.
+- Do NOT list the full menu unless the user explicitly asks for the full menu or to "see the menu".
+- When referencing food or drinks, prefer short summaries or highlights rather than item-by-item lists.
+- Special question handling: If the user asks exactly or similarly "What else do you have besides wine?", first ask whether they mean "food" or "drinks". If the user clarifies:
+  - food: reply: "Our menu leans into comfort-driven, seasonal cooking that feels warm and familiar but elevated. It brings together farm-style plates, handmade pastas, flatbreads, and coastal classics."
+  - drinks: reply with a short 1-2 sentence description of the craft beers and cocktails offered.
+  - both: combine the two responses into one short, smooth sentence or two.
+- Whenever you recommend making a reservation, include the exact reservation button HTML:
+  <a href=\"https://windmillcreekvineyard.com/mariner-house-dining-reservations-2/\" target=\"_blank\"><button>Make a reservation</button></a>
+`;
+
 async function handleFunctionCall(name, args) {
   if (name === "lookup_wine_pairing") {
     const response = await fetch("http://localhost:4000/api/wine-pairing", {
@@ -441,13 +464,10 @@ const requestHandler = async (req, res) => {
                 `menus?restaurant_id=eq.${encodeURIComponent(rid)}&select=*,menu_items(*)`,
               );
               if (menus && menus.length) {
-                system = (system || "") + "\nMenu items:\n";
+                system = (system || "") + "\nMenus available:\n";
                 for (const menu of menus) {
-                  system += `-- ${menu.title}: `;
-                  const items = (menu.items || menu.menu_items || []).map(
-                    (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
-                  );
-                  system += items.join(", ") + "\n";
+                  const items = menu.items || menu.menu_items || [];
+                  system += `-- ${menu.title}: ${items.length} items\n`;
                 }
               }
 
@@ -485,14 +505,7 @@ const requestHandler = async (req, res) => {
           }
         }
 
-        system =
-          (system || "") +
-          WINE_PAIRING_INSTRUCTIONS +
-          WINE_PAIRING_RESPONSE_STYLE;
-        system =
-          (system || "") +
-          WINE_PAIRING_INSTRUCTIONS +
-          WINE_PAIRING_RESPONSE_STYLE;
+        system = (system || "") + HOSTESS_INSTRUCTIONS + WINE_PAIRING_INSTRUCTIONS + WINE_PAIRING_RESPONSE_STYLE;
         const result = await openaiChat({
           message: body.message,
           system,
@@ -564,13 +577,10 @@ const requestHandler = async (req, res) => {
                 `menus?restaurant_id=eq.${encodeURIComponent(rid)}&select=*,menu_items(*)`,
               );
               if (menus && menus.length) {
-                system = (system || "") + "\nMenu items:\n";
+                system = (system || "") + "\nMenus available:\n";
                 for (const menu of menus) {
-                  system += `-- ${menu.title}: `;
-                  const items = (menu.items || menu.menu_items || []).map(
-                    (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
-                  );
-                  system += items.join(", ") + "\n";
+                  const items = menu.items || menu.menu_items || [];
+                  system += `-- ${menu.title}: ${items.length} items\n`;
                 }
               }
               const faqs = await supabaseFetch(
@@ -607,6 +617,7 @@ const requestHandler = async (req, res) => {
           }
         }
 
+        system = (system || "") + HOSTESS_INSTRUCTIONS + WINE_PAIRING_INSTRUCTIONS + WINE_PAIRING_RESPONSE_STYLE;
         const result = await openaiChat({
           message: body.message,
           system,

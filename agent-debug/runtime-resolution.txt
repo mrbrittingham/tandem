@@ -1,0 +1,95 @@
+Runtime ChatWidget Resolution Report
+===================================
+
+1) Instrumentation status
+-------------------------
+- Added `console.log("[RUNTIME] ui-kit ChatWidget MOUNTED")` to `packages/ui-kit/src/components/chat/ChatWidget.tsx`.
+- Added `console.log("[RUNTIME] ui-kit ChatTrigger RENDERED")` to `packages/ui-kit/src/components/chat/ChatTrigger.tsx`.
+- `npm run build` in `packages/ui-kit` failed with TypeScript parse errors inside `ChatWidget.tsx` (pre-existing malformed JSX around the main return). So the new runtime logs are **not** present in `dist/` yet.
+- Despite the failed build, existing `dist/components/chat/ChatWidget.js` already contains the ui-kit ChatWidget implementation and is what `@tandem/ui-kit` exposes.
+
+2) Compiled Next.js graph: ui-kit vs legacy ui
+---------------------------------------------
+Using `grep -R "ChatWidget" apps/client/.next`:
+
+- There are multiple Turbopack client chunks that reference:
+  - `[project]/packages/ui-kit/src/components/chat/ChatWidget.tsx [client] (ecmascript)`
+  - `[project]/packages/ui-kit/src/index.ts [client] (ecmascript)` exporting `ChatWidget`.
+  - `[project]/apps/client/pages/restaurant/[slug].js` importing `{ ChatWidget, ThemeProvider, windmillCreekTheme }` from `"@tandem/ui-kit"`.
+  - JSX call sites like:
+    - `jsxDEV(__TURBOPACK__...$packages$2f$ui$2d$kit$2f$src$2f$components$2f$chat$2f$ChatWidget..., { ... })` where `<ChatWidget headerVariant="with-image" />` is rendered from `[slug].js`.
+
+- Critically, there is also a separate chunk:
+  - `[project]/packages/ui/ChatWidget.jsx [client] (ecmascript)`
+  - `[project]/packages/ui/index.js` exporting `default as ChatWidget` and `ChatWidgetPlaceholder`.
+  - This chunk wires a `ChatWidget` component that **matches your legacy widget** (blue rectangle panel + fixed 64px circular button, menu, sound toggle, etc.).
+
+- Two distinct restaurant page variants are visible in source maps:
+  1) Old variant importing from `"ui"`:
+     - Source: `apps/client/pages/restaurant/[slug].js`
+     - Import line in map: `import { ChatWidget } from "ui";`
+     - JSX: `<ChatWidget restaurantId={restaurant?.id || slug} />`.
+     - This version compiles into chunks that call into `packages/ui/index.js` → `packages/ui/ChatWidget.jsx`.
+
+  2) New variant importing from `"@tandem/ui-kit"`:
+     - Source: `apps/client/pages/restaurant/[slug].js`
+     - Import line in map: `import { ChatWidget, ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit";`
+     - JSX: `<ChatWidget headerVariant="with-image" />`.
+     - This version compiles into chunks that call into `packages/ui-kit/src/components/chat/ChatWidget.tsx` (Figma-style widget).
+
+- Turbopack keeps **both** variants of `[slug].js` in dev bundles, each bound to a different module graph:
+  - One graph for `"ui"` → `packages/ui/ChatWidget.jsx`.
+  - Another graph for `"@tandem/ui-kit"` → `packages/ui-kit/.../ChatWidget.tsx`.
+
+3) What is actually rendering the blue widget?
+---------------------------------------------
+From the `.next` dev chunks, the DOM and source chain for the legacy blue widget are:
+
+- Module ID: `[project]/packages/ui/ChatWidget.jsx [client] (ecmascript)`
+- Default export: `function ChatWidget({ restaurantId } = {}) { ... }` in `packages/ui/ChatWidget.jsx`.
+- Re-export:
+  - `packages/ui/index.js`: `export { default as ChatWidget } from "./ChatWidget.jsx";`
+- Restaurant page binding in older compiled graph:
+  - `apps/client/pages/restaurant/[slug].js` imports `{ ChatWidget }` from `"ui"`.
+  - JSX: `<ChatWidget restaurantId={restaurant?.id || slug} />`.
+  - In the compiled chunk, this appears as:
+    - `jsxDEV(__TURBOPACK__imported__module__$...$packages$2f$ui$2f$ChatWidget$2e$jsx...["ChatWidget"], { restaurantId: ... })`.
+
+Given your screenshot description (blue rectangle container, fixed 64px blue circular button, the same SVG paths), this matches exactly the DOM structure produced by `packages/ui/ChatWidget.jsx`.
+
+Conclusion:
+- The **component that renders the blue widget DOM at runtime is**:
+  - `packages/ui/ChatWidget.jsx` (default export `ChatWidget`), re-exported from
+  - `packages/ui/index.js` as a named `ChatWidget`, resolved via the `"ui"` alias.
+- This is the legacy UI package, **not** `@tandem/ui-kit`.
+
+4) Why is it overriding ui-kit ChatWidget?
+-----------------------------------------
+- In source, there are (or have been) two versions of `[slug].js`:
+  - One importing from `"ui"`.
+  - One importing from `"@tandem/ui-kit"`.
+- Turbopack dev output currently includes **both** module graphs, with both sets of source maps.
+- When the restaurant page (or another route/layout) imports `ChatWidget` via the `"ui"` alias, Next/React will render the legacy `packages/ui/ChatWidget.jsx` tree. That is the blue widget you see.
+- Your ui-kit ChatWidget is present in the graph, but wherever `"ui"` is still imported (either in `[slug].js` or some other wrapper that re-exports ChatWidget), that old widget wins for that call site.
+
+5) Other ChatWidget exports in repo
+-----------------------------------
+- `packages/ui-kit/src/components/chat/ChatWidget.tsx` → named `ChatWidget` (Figma-style widget).
+- `packages/ui/ChatWidget.jsx` → default `ChatWidget` (legacy blue widget).
+- `packages/ui/index.js`:
+  - `export { default as ChatWidget } from "./ChatWidget.jsx";`
+  - `export function ChatWidgetPlaceholder() { ... }` (default export is the placeholder).
+
+6) Next steps to fully confirm at runtime
+----------------------------------------
+- Because `npm run build` for ui-kit currently fails, your runtime build is still using the **older** compiled ui-kit `dist` and is definitely not using the newly-instrumented logs.
+- However, from the `.next` dev bundles, we already see that the blue widget DOM is coming from `packages/ui/ChatWidget.jsx` via the `"ui"` alias.
+
+To prove this experimentally once you fix `ChatWidget.tsx` syntax and rebuild ui-kit:
+- Add a very loud console.log or visual marker to `packages/ui/ChatWidget.jsx` (e.g., `[RUNTIME] legacy ui/ChatWidget RENDERED`).
+- Restart dev server and reload the restaurant page.
+- You should see the legacy log whenever the blue widget appears.
+
+But even without that change, the compiled `.next` evidence shows:
+- The blue rectangle + circular button widget originates from `packages/ui/ChatWidget.jsx`.
+- Any restaurant route still importing from `"ui"` (directly or through a wrapper) will render that component instead of ui-kit.

@@ -1,0 +1,32 @@
+Alias resolution and imports used by apps/client
+
+apps/client/jsconfig.json:
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "ui/*": ["../../packages/ui/*"],
+      "ui": ["../../packages/ui"]
+    }
+  }
+}
+
+Implications:
+- `import { ChatWidget } from "ui";` resolves to /workspace/packages/ui/index.js, which in turn exports ChatWidget from ./ChatWidget.jsx (legacy widget).
+
+Key imports in apps/client:
+
+- /workspace/apps/client/pages/restaurant/[slug].js
+  - `import { ChatWidget } from "@tandem/ui-kit";`
+  - This page uses the new UI Kit package directly; alias "ui" is not involved here.
+
+- Other pages (based on repository scan):
+  - /workspace/apps/client/pages/index.js
+  - /workspace/apps/client/pages/chat.js
+  - /workspace/apps/client/pages/demo/windmill-creek.js
+  - These import `ChatWidget` from "ui", which resolves to packages/ui (legacy), not @tandem/ui-kit.
+
+Conclusion:
+- For the Windmill Creek restaurant page specifically, the import is already from "@tandem/ui-kit", so it should be using the new Figma-based ChatWidget implementation.
+- The alias mapping for "ui" only affects pages still importing from "ui"; those pages will continue to show the old widget from packages/ui.
+- Therefore, if the restaurant page is still showing the old UI, the root cause is not the import path in [slug].js but how @tandem/ui-kit itself resolves and what component it exports as ChatWidget.

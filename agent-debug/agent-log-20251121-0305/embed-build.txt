@@ -1,0 +1,2 @@
+Initialized @tandem/embed package with tsconfig, frame.html, inject.css, shadow-root.ts, and embed.ts for Shadow DOM mounting.
+Build script uses esbuild to bundle embed.ts into dist/embed.js.

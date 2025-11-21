@@ -1,0 +1,207 @@
+Here are the findings and instrumentation, following your steps exactly.
+
+---
+
+1. Which ChatWidget source is actually imported into @tandem/ui-kit
+
+Files found:
+
+- ChatWidget.tsx
+	- /workspace/packages/ui-kit/src/components/chat/ChatWidget.tsx
+- ChatWidget.jsx
+	- /workspace/packages/ui/ChatWidget.jsx
+- ChatWidget.js
+	- /workspace/packages/ui-kit/src/components/chat/ChatWidget.js (source JS twin)
+	- /workspace/packages/ui-kit/dist/components/chat/ChatWidget.js (built output; found under dist/components/chat)
+
+Exports in ui-kit:
+
+- packages/ui-kit/src/index.ts
+	export { ThemeProvider, useTheme, windmillCreekTheme } from "./lib/theme-context";
+	export { ChatWidget, ChatTrigger } from "./components/chat";
+
+- packages/ui-kit/dist/index.js
+	export { ThemeProvider, useTheme, windmillCreekTheme } from "./lib/theme-context";
+	export { ChatWidget, ChatTrigger } from "./components/chat";
+
+- packages/ui-kit/dist/components/chat/index.js (from directory listing, this module re-exports ChatWidget from ./ChatWidget.js).
+
+Conclusion:
+
+- @tandem/ui-kit’s ChatWidget comes from packages/ui-kit/dist/components/chat/ChatWidget.js, which is compiled from packages/ui-kit/src/components/chat/ChatWidget.tsx.
+- The packages/ui/ChatWidget.jsx file is unrelated to @tandem/ui-kit and is not what import { ChatWidget } from "@tandem/ui-kit" uses.
+
+---
+
+2. Minimal debug markers added to the ui-kit source
+
+File instrumented:
+/workspace/packages/ui-kit/src/components/chat/ChatWidget.tsx
+(this is the only source that compiles into ui-kit/dist for the exported widget).
+
+Changes:
+
+- Inside the ChatWidget function, near the top, not in the return:
+
+export function ChatWidget({}: ChatWidgetProps) {
+	const { theme } = useTheme();
+	const [isOpen, setIsOpen] = useState(false);
+	...
+	const [showTyping, setShowTyping] = useState(false);
+	const isMobile = typeof window !== "undefined" && window.innerWidth <= 480;
+	console.log("=== ACTIVE CHATWIDGET SOURCE ===", Date.now());
+
+- On the open-state root panel <div>, I added the outline-only debug style:
+
+{isOpen && (
+	<div
+		className="bg-white flex flex-col overflow-hidden"
+		style={{
+			outline: "3px solid magenta",
+			...(isMobile
+				? {
+						right: 0,
+						left: 0,
+						bottom: 0,
+						width: "100%",
+						maxWidth: "100%",
+						height: "calc(100vh - 56px)",
+						maxHeight: "calc(100vh - 56px)",
+						borderRadius: 0,
+					}
+				: {}),
+			position: "fixed",
+			zIndex: 99999,
+			borderRadius: "var(--tandem-widget-radius)",
+			boxShadow: theme.shadows.deep,
+			overflow: "hidden",
+			right: isMobile ? 0 : 24,
+			bottom: isMobile ? 0 : 24,
+			width: isMobile ? "100%" : 340,
+			maxWidth: "100%",
+			height: isMobile
+				? "calc(100vh - 56px)"
+				: "min(540px, calc(100vh - 48px))",
+			maxHeight: isMobile
+				? "calc(100vh - 56px)"
+				: "calc(100vh - 48px)",
+		}}
+	>
+		...
+	</div>
+)}
+
+- I did not alter props, open/close logic, or mobile/desktop behavior—only added the console.log and the magenta outline.
+
+Note: dist/components/chat/ChatWidget.js currently still shows the older debug log + red background we added earlier; rebuilding ui-kit will sync it with this new outline-only version.
+
+---
+
+3. Windmill Creek page inspection
+
+Actual file present:
+/workspace/apps/client/pages/restaurant/[slug].js
+(no windmill-creek.tsx file exists; that’s why the earlier attempt to read it failed).
+
+Current content (relevant parts):
+
+- Imports:
+
+import React, { useEffect, useState } from "react";
+import { ChatWidget, ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit";
+import { useRouter } from "next/router";
+
+- Top-of-page text logo (this is the visual change you’re seeing):
+
+return (
+	<div
+		style={{
+			fontFamily:
+				'Inter, system-ui, -apple-system, "Segoe UI", Roboto',
+		}}
+	>
+		<div
+			style={{
+				width: "100%",
+				padding: "24px 0",
+				display: "flex",
+				justifyContent: "flex-start",
+				alignItems: "center",
+				paddingLeft: 24,
+				backgroundColor: "white",
+			}}
+		>
+			<img
+				src="/assets/logos/wmc-text.png"
+				alt="Windmill Creek"
+				style={{ height: 48, objectFit: "contain" }}
+			/>
+		</div>
+
+		<ChatWidget />
+	</div>
+);
+
+What recently changed here:
+
+- Previously this file had a full-screen hero <section> with a background image based on heroSrc. That entire <section>...</section> block was removed and replaced with the <div> containing the top-of-page text logo above.
+- The ChatWidget component is now rendered directly under that logo, with no additional layout wrappers.
+
+Whether text logo or widget assets were imported “by accident”:
+
+- The text logo is explicitly injected here via:
+
+	<img
+		src="/assets/logos/wmc-text.png"
+		alt="Windmill Creek"
+		...
+	/>
+
+	That’s a deliberate page-level addition; it is not coming from the widget.
+
+- There is no direct import of widget assets (images) into this file; it only imports ChatWidget and theme types from @tandem/ui-kit.
+
+Global layout CSS:
+
+- This file uses inline style props only; there are no CSS module imports, global stylesheet imports, or tailwind classes in [slug].js itself.
+- So any layout override from this file is purely via those inline styles, not via global CSS.
+
+---
+
+4. Summary of findings (no fixes applied)
+
+- File actually used by the widget:
+	- @tandem/ui-kit’s ChatWidget ultimately comes from packages/ui-kit/dist/components/chat/ChatWidget.js, which is built from packages/ui-kit/src/components/chat/ChatWidget.tsx.
+	- We have now added non-destructive debug markers inside src/components/chat/ChatWidget.tsx:
+		- console.log("=== ACTIVE CHATWIDGET SOURCE ===", Date.now());
+		- A magenta outline on the root open-state panel.
+
+- Code injecting the text logo at the top of the page:
+	- apps/client/pages/restaurant/[slug].js:
+
+		<div
+			style={{
+				width: "100%",
+				padding: "24px 0",
+				display: "flex",
+				justifyContent: "flex-start",
+				alignItems: "center",
+				paddingLeft: 24,
+				backgroundColor: "white",
+			}}
+		>
+			<img
+				src="/assets/logos/wmc-text.png"
+				alt="Windmill Creek"
+				style={{ height: 48, objectFit: "contain" }}
+			/>
+		</div>
+
+	- This is the source of the page-level text logo you’re seeing.
+
+- Where layout is being overridden:
+	- Page-level layout: in [slug].js, inline styles on the wrapping <div> and the logo container <div> define the page structure.
+	- Widget layout: in packages/ui-kit/src/components/chat/ChatWidget.tsx (and its compiled dist JS), the fixed-position panel, mobile/full-width behavior, and now the magenta outline are all controlled via inline style on the open-state panel <div>.
+
+Per your instructions, I have not fixed or reverted anything yet—only added the requested debug instrumentation and collected this information.
+

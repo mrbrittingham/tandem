@@ -1,10 +1,24 @@
 import React, { useState, useRef, useEffect } from "react";
+import TypingIndicator from "./TypingIndicator";
 
 export default function ChatWidget({ restaurantId } = {}) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [typing, setTyping] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try {
+      return localStorage.getItem("tandem_sound_enabled") !== "false";
+    } catch (e) {
+      return true;
+    }
+  });
+  const [showMenu, setShowMenu] = useState(false);
+  // Track whether we've already expanded after the user's first interaction
+  const expandedOnceRef = useRef(false);
+  // Keep a set of prior detailed assistant replies to avoid near-duplicates
+  const priorAssistantRepliesRef = useRef(new Set());
   const msgsRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(1); // start at 1 to show the badge on first load
 
@@ -123,6 +137,33 @@ export default function ChatWidget({ restaurantId } = {}) {
     scrollToBottom();
   }, [messages, typing]);
 
+  // Play a short beep using WebAudio for cues (no external assets)
+  const playBeep = (opts = {}) => {
+    if (!soundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = opts.type || "sine";
+      o.frequency.value = opts.freq || 880;
+      g.gain.value = opts.volume ?? 0.05;
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      setTimeout(() => {
+        o.stop();
+        try {
+          ctx.close();
+        } catch (e) {}
+      }, opts.duration || 120);
+    } catch (e) {
+      // ignore audio errors
+    }
+  };
+
+  // Remove auto-expand-by-content; instead expand only once after the user's first interaction
+
   const send = async (text) => {
     const content = typeof text === "string" ? text : input;
     if (!content) return;
@@ -131,6 +172,19 @@ export default function ChatWidget({ restaurantId } = {}) {
     setMessages((m) => [...m, msg]);
     setInput("");
     setTyping(true);
+
+    // Expand the chat smoothly after the user's FIRST interaction only
+    try {
+      if (!expandedOnceRef.current) {
+        // small timeout so the user's message renders before expansion animation
+        setTimeout(() => {
+          setExpanded(true);
+          expandedOnceRef.current = true;
+          // play expansion cue
+          playBeep({ freq: 520, duration: 180, volume: 0.04 });
+        }, 220);
+      }
+    } catch (e) {}
 
     try {
       // Always send chat requests to the backend's /api/chat endpoint.
@@ -153,21 +207,62 @@ export default function ChatWidget({ restaurantId } = {}) {
       });
 
       const json = await res.json();
+      let assistantText = String(json?.reply ?? "No reply");
 
-      const reply = {
-        role: "assistant",
-        text: json?.reply ?? "No reply",
-        time: new Date().toISOString(),
-      };
+      // Check if user explicitly asked for full menu / equivalent
+      const lastUser = content.toLowerCase();
+      const explicitMenuRequest = /\b(full menu|show full menu|show menu|display menu|full list of|entire menu)\b/i.test(lastUser);
 
-      setMessages((m) => [...m, reply]);
+      // Detect if assistant is attempting to dump a menu or long list
+      const isMenuLike = /Appetizers|Entrees|Dessert|Wine list|Menu|Small Plates|Mains|Sides|Drinks|Ingredients/i.test(assistantText) || (assistantText.split(/\r?\n/).filter(Boolean).length >= 6);
+
+      // If menu-like and user did NOT explicitly request it, suppress the full dump and offer a prompt/button
+      let messageObj = { role: "assistant", text: assistantText, time: new Date().toISOString(), meta: {} };
+      if (isMenuLike && !explicitMenuRequest) {
+        // store the full menu in meta for later reveal
+        messageObj.meta.fullMenu = assistantText;
+        messageObj.text = "I can show the full menu if you'd like — would you like to see the full menu?";
+        messageObj.meta.offerShowFullMenu = true;
+      }
+
+      // Reservation suggestion normalization: if assistant mentions reservations, standardize the message and attach button
+      const suggestsReservation = /reserv|book|reservation|reserve|reservations page/i.test(assistantText);
+      if (suggestsReservation) {
+        messageObj.text = "You can visit our reservations page to book your next visit. Just click the button below.";
+        messageObj.meta.showReservationButton = true;
+      }
+
+      // Redundancy check: avoid repeating detailed messages
+      const normalize = (s) => s.replace(/\s+/g, " ").trim().toLowerCase();
+      const normalized = normalize(messageObj.text);
+      const prior = priorAssistantRepliesRef.current;
+      const userAskedRepeat = /repeat|again|say that|repeat that|restate/i.test(lastUser);
+      if (!userAskedRepeat) {
+        for (let prev of prior) {
+          if (!prev) continue;
+          // If new message is identical or contained in previous or vice versa, treat as duplicate
+          if (prev === normalized || prev.includes(normalized) || normalized.includes(prev)) {
+            // skip adding duplicate; instead show a brief acknowledgement
+            messageObj.text = "I already shared that — would you like more details or a different summary?";
+            messageObj.meta.isDuplicateNotice = true;
+            break;
+          }
+        }
+      }
+
+      // If message contains substantial content and isn't just a duplicate notice, remember it for future dedup checks
+      if (!messageObj.meta.isDuplicateNotice) prior.add(normalized);
+
+      setMessages((m) => {
+        // play receipt cue when assistant reply arrives
+        try {
+          playBeep({ freq: 880, duration: 100, volume: 0.04 });
+        } catch (e) {}
+        return [...m, messageObj];
+      });
       if (!open) setUnreadCount((n) => n + 1);
     } catch {
-      const err = {
-        role: "assistant",
-        text: "Error sending message",
-        time: new Date().toISOString(),
-      };
+      const err = { role: "assistant", text: "Error sending message", time: new Date().toISOString() };
       setMessages((m) => [...m, err]);
     } finally {
       setTyping(false);
@@ -191,6 +286,11 @@ export default function ChatWidget({ restaurantId } = {}) {
     ? "translateY(0) scale(1)"
     : "translateY(8px) scale(0.98)";
 
+  const panelWidth = 414; // ~15% wider than previous 360
+  const basePanelHeight = 480; // previous starting height
+  const expandedPanelHeight = Math.min(basePanelHeight * 1.5, typeof window !== "undefined" ? Math.round(window.innerHeight * 0.9) : 720);
+  const panelMaxHeight = typeof window !== "undefined" && expanded ? expandedPanelHeight : basePanelHeight;
+
   const styles = {
     root: {
       position: "fixed",
@@ -208,8 +308,8 @@ export default function ChatWidget({ restaurantId } = {}) {
       boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
     },
     panel: {
-      width: 360,
-      maxHeight: 480,
+      width: panelWidth,
+      maxHeight: panelMaxHeight,
       boxShadow: "0 12px 40px rgba(52,74,85,0.12)",
       borderRadius: 12,
       overflow: "hidden",
@@ -217,7 +317,7 @@ export default function ChatWidget({ restaurantId } = {}) {
       marginTop: 8,
       display: "flex",
       flexDirection: "column",
-      transition: "transform 200ms ease, opacity 200ms ease",
+      transition: "transform 300ms cubic-bezier(.2,.9,.2,1), opacity 200ms ease, max-height 420ms cubic-bezier(.2,.9,.2,1), width 220ms",
     },
     header: {
       padding: 12,
@@ -236,7 +336,7 @@ export default function ChatWidget({ restaurantId } = {}) {
       background: "rgba(0,0,0,0.12)",
       border: "none",
       color: "#fff",
-      display: "flex",
+      display: expanded ? "flex" : "none",
       alignItems: "center",
       justifyContent: "center",
       cursor: "pointer",
@@ -246,11 +346,13 @@ export default function ChatWidget({ restaurantId } = {}) {
     },
     messages: {
       padding: 12,
-      height: 340,
+      flex: "1 1 auto",
       overflowY: "auto",
       display: "flex",
       flexDirection: "column",
       gap: 10,
+      // Reserve space for typing indicator overlay so it does not push content
+      position: "relative",
     },
     msgRow: { display: "flex", gap: 8, alignItems: "flex-end" },
     bubbleUser: {
@@ -268,6 +370,8 @@ export default function ChatWidget({ restaurantId } = {}) {
       maxWidth: "78%",
       alignSelf: "flex-start",
       border: "1px solid rgba(52,74,85,0.06)",
+      wordBreak: "break-word",
+      overflowWrap: "anywhere",
     },
     avatar: {
       width: 28,
@@ -314,6 +418,53 @@ export default function ChatWidget({ restaurantId } = {}) {
       background: "#fff",
       cursor: "pointer",
       fontSize: 13,
+    },
+    footer: {
+      padding: 8,
+      textAlign: "center",
+      fontSize: 11,
+      color: "#fff",
+      background: `linear-gradient(90deg, ${COLORS.nearshore}, ${COLORS.delmarva})`,
+      fontWeight: 700,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+    },
+    hero: {
+      height: 110,
+      background: `linear-gradient(90deg, ${COLORS.bay}, ${COLORS.nearshore})`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#fff",
+      fontWeight: 700,
+      fontSize: 18,
+    },
+    menuButton: {
+      position: "absolute",
+      left: 10,
+      top: 8,
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      background: "rgba(255,255,255,0.12)",
+      border: "none",
+      color: "#fff",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+    },
+    menuPanel: {
+      position: "absolute",
+      left: 10,
+      top: 44,
+      background: "#fff",
+      color: "#111",
+      borderRadius: 8,
+      boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
+      padding: 8,
+      minWidth: 180,
+      zIndex: 20,
     },
   };
 
@@ -393,15 +544,58 @@ export default function ChatWidget({ restaurantId } = {}) {
         }}
       >
         <div style={{ ...styles.header, position: "relative" }}>
-          <span>Tandem Chat</span>
+          <button
+            aria-label="Menu"
+            onClick={() => setShowMenu((s) => !s)}
+            style={styles.menuButton}
+          >
+            ⚙
+          </button>
+          {showMenu && (
+            <div style={styles.menuPanel} role="menu">
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={!!soundEnabled}
+                  onChange={(e) => {
+                    const on = !!e.target.checked;
+                    setSoundEnabled(on);
+                    try {
+                      localStorage.setItem("tandem_sound_enabled", on ? "true" : "false");
+                    } catch (e) {}
+                  }}
+                />
+                Sound cues
+              </label>
+              <div style={{ marginTop: 8 }}>
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    // toggle panel expansion manually
+                    setExpanded((v) => !v);
+                    playBeep({ freq: 520, duration: 140, volume: 0.04 });
+                  }}
+                >
+                  Toggle expand
+                </button>
+              </div>
+            </div>
+          )}
+          <span>Windmill Creek Chat</span>
           <button
             aria-label="Minimize chat"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              setExpanded(false);
+            }}
             style={styles.closeBtn}
           >
-            —
+            ✕
           </button>
         </div>
+
+        {/* Hero image placeholder */}
+        <div style={styles.hero}>WINDMILL CREEK — [hero image placeholder]</div>
 
         <div ref={msgsRef} style={styles.messages}>
           {messages.length === 0 && (
@@ -446,17 +640,69 @@ export default function ChatWidget({ restaurantId } = {}) {
                     <div>{String(m.text)}</div>
                   )}
                 </div>
+                  {/* Assistant-level action buttons (reservation / show full menu) */}
+                  {m.role === "assistant" && m.meta && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                      {m.meta.showReservationButton && (
+                        <a
+                          href="https://windmillcreekvineyard.com/mariner-house-dining-reservations-2/"
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: "inline-block",
+                            padding: "8px 14px",
+                            borderRadius: 999,
+                            background: COLORS.nearshore,
+                            color: "#fff",
+                            textDecoration: "none",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Book A Reservation
+                        </a>
+                      )}
+
+                      {m.meta.offerShowFullMenu && (
+                        <button
+                          onClick={() => {
+                            // Replace the offer message with the full menu stored in meta
+                            setMessages((cur) =>
+                              cur.map((cm) => {
+                                if (cm === m) {
+                                  return { ...cm, text: cm.meta.fullMenu, meta: { ...cm.meta, offerShowFullMenu: false } };
+                                }
+                                return cm;
+                              })
+                            );
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 999,
+                            background: "#fff",
+                            border: `1px solid ${COLORS.nearshore}`,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Show Full Menu
+                        </button>
+                      )}
+                    </div>
+                  )}
                 {m.role === "user" && <div style={styles.avatar}>U</div>}
               </div>
             );
           })}
 
-          {typing && (
-            <div style={{ fontStyle: "italic", color: "#667085" }}>
-              Assistant is typing...
-            </div>
-          )}
+          {/* Typing indicator reserved overlay (does not alter flow) */}
+          <div style={{ height: 44 }} />
         </div>
+
+        {/* Typing indicator overlay */}
+        {typing && (
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 84, pointerEvents: "none", display: open ? "block" : "none" }}>
+            <TypingIndicator />
+          </div>
+        )}
 
         <div style={styles.quickRow}>
           {quickReplies.map((q) => (
@@ -479,6 +725,7 @@ export default function ChatWidget({ restaurantId } = {}) {
             Send
           </button>
         </div>
+        <div style={styles.footer}>POWERED BY TANDEM</div>
       </div>
     </div>
   );

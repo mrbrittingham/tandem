@@ -9,6 +9,28 @@ const DEMO_PATH = path.join(
   "windmill.json",
 );
 
+// Hostess and wine-pairing instructions (client-side mirror of server behavior)
+const HOSTESS_INSTRUCTIONS = `
+HOSTESS RESPONSE RULES:
+- Short, friendly, hostess-on-the-phone tone for replies.
+- Do NOT list the full menu unless the user explicitly asks to "see the menu" or requests the full menu.
+- Prefer short summaries or highlights rather than item-by-item lists.
+- If asked "What else do you have besides wine?", ask whether they mean "food" or "drinks". If the user clarifies:
+  - food: reply: "Our menu leans into comfort-driven, seasonal cooking that feels warm and familiar but elevated. It brings together farm-style plates, handmade pastas, flatbreads, and coastal classics."
+  - drinks: reply with a short 1-2 sentence description of the craft beers and cocktails offered.
+  - both: combine the two responses into one short, smooth reply.
+- When recommending a reservation, include the exact reservation button HTML:
+  <a href=\"https://windmillcreekvineyard.com/mariner-house-dining-reservations-2/\" target=\"_blank\"><button>Make a reservation</button></a>
+`;
+
+const WINE_PAIRING_INSTRUCTIONS = `
+Only use wine-pairing logic when the restaurant's data includes pairings. Use pairing lookups ONLY when the user asks for a pairing for a specific dish. When returning a pairing, say "our <Wine Name>".
+`;
+
+const WINE_PAIRING_RESPONSE_STYLE = `
+When returning a wine pairing, always prefix with "our" (example: "our Chambourcin").
+`;
+
 async function readDemo() {
   try {
     const txt = await fs.promises.readFile(DEMO_PATH, "utf8");
@@ -107,13 +129,10 @@ export default async function handler(req, res) {
           if (restaurant) {
             system = `You are an assistant for ${restaurant.name} (${restaurant.short_name || restaurant.name}). `;
             if (Array.isArray(menus) && menus.length) {
-              system += "\nMenu items:\n";
+              system += "\nMenus available:\n";
               for (const menu of menus) {
-                system += `-- ${menu.title}: `;
-                const names = (menu.menu_items || []).map(
-                  (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
-                );
-                system += names.join(", ") + "\n";
+                const items = menu.menu_items || [];
+                system += `-- ${menu.title}: ${items.length} items\n`;
               }
             }
             if (Array.isArray(faqs) && faqs.length) {
@@ -130,13 +149,10 @@ export default async function handler(req, res) {
           if (demo && demo.restaurant) {
             system = `You are an assistant for ${demo.restaurant.name} (${demo.restaurant.short_name}). `;
             if (demo.menus) {
-              system += "\nMenu items:\n";
+              system += "\nMenus available:\n";
               for (const menu of demo.menus) {
-                system += `-- ${menu.title}: `;
-                const names = (menu.items || []).map(
-                  (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
-                );
-                system += names.join(", ") + "\n";
+                const items = menu.items || [];
+                system += `-- ${menu.title}: ${items.length} items\n`;
               }
             }
             if (demo.faqs) {
@@ -152,13 +168,10 @@ export default async function handler(req, res) {
         if (demo && demo.restaurant) {
           system = `You are an assistant for ${demo.restaurant.name} (${demo.restaurant.short_name}). `;
           if (demo.menus) {
-            system += "\nMenu items:\n";
+            system += "\nMenus available:\n";
             for (const menu of demo.menus) {
-              system += `-- ${menu.title}: `;
-              const names = (menu.items || []).map(
-                (i) => `${i.name}${i.price ? ` ($${i.price})` : ""}`,
-              );
-              system += names.join(", ") + "\n";
+              const items = menu.items || [];
+              system += `-- ${menu.title}: ${items.length} items\n`;
             }
           }
           if (demo.faqs) {
@@ -268,7 +281,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ reply: formatted });
     }
 
-    // Ask OpenAI
+    // Ask OpenAI (append hostess + wine pairing guidance)
+    system = (system || "") + HOSTESS_INSTRUCTIONS + WINE_PAIRING_INSTRUCTIONS + WINE_PAIRING_RESPONSE_STYLE;
     const modelReply = await openaiChat({ message: body.message, system });
     const reply = await formatBotReply(modelReply);
     return res.status(200).json({ reply });

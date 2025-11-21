@@ -1,0 +1,158 @@
+FIGMA THEME AUDIT REPORT
+========================
+
+Date: 2025-11-21
+
+1) Canonical Windmill Creek theme
+---------------------------------
+- Canonical theme file: packages/ui-kit/src/lib/themes/windmill-creek.ts
+- Runtime JS mirror:    packages/ui-kit/src/lib/themes/windmill-creek.js
+
+Applied final Figma tokens:
+- colors.primary   = #5C2E4A
+- colors.secondary = #D4598B
+- colors.accent    = #D9A441
+- colors.background = #F5EFE7
+- colors.surface    = #FAF7F2
+- colors.userBubble = #F9EDD5
+- colors.agentBubble = #FAF7F2
+- colors.highlight   = #8B4F7D
+- gradients.cta       = linear-gradient(90deg, #5C2E4A, #D4598B)
+- shadows.soft = 0 3px 8px rgba(61,40,23,0.12)
+- shadows.deep = 0 8px 20px rgba(61,40,23,0.18)
+- shadows.rich = 0 4px 12px rgba(92,46,74,0.15)
+- radii.widget = 16px
+- radii.bubble = 18px
+- radii.button = 9999px
+- typography.header = "Lilita One"
+- typography.body   = "Inter"
+- icons.sendArrow   = #D9A441
+- icons.headerIcons = #FFFFFF
+
+Duplicate / legacy theme files found:
+- packages/ui-kit/src/lib/themes/windmill-creek.ts (kept, updated)
+- packages/ui-kit/src/lib/themes/windmill-creek.js (kept, synced to TS for dist consumers)
+
+No other windmill-creek* or theme backup files (.old/.copy/.backup) were found in the repo.
+
+2) Component audit for Figma exports
+------------------------------------
+Searched locations:
+- packages/ui-kit/src/components/*
+- packages/ui-kit/src/*
+- apps/client/components/*
+- apps/admin/components/*
+
+Findings:
+- No *.copy.tsx, *.old.tsx, or *.backup.tsx component files were present.
+- Chat components currently live under packages/ui-kit/src/components/chat and in compiled JS form.
+- Figma-specific helper components are under packages/ui-kit/src/components/figma (ImageWithFallback).
+- No unused/duplicate ChatHeader variants were found beyond the single chat-header.tsx/js pair.
+- No unused SVG/icon files related to early Figma exports were detected in ui-kit.
+
+Actions:
+- No files were deleted or archived as Figma originals, because no redundant copies were detected that were safe to remove.
+
+3) Token / CSS variable files
+-----------------------------
+Search patterns:
+- tokens.json, design-tokens.json, tokens.ts
+- variables.css, theme.css, figma-tokens/*
+
+Findings:
+- No matching token or CSS variable files were found under the repo (outside of node_modules and build artifacts).
+- All theming currently comes from the JS/TS theme object in packages/ui-kit/src/lib/themes/windmill-creek.(ts|js).
+
+Actions:
+- No token files were deleted or merged because none existed beyond the canonical theme object.
+
+4) Alias usage / imports
+------------------------
+Search:
+- Looked for imports using `from "ui"` or `from 'ui'` in JS/TS/TSX files.
+- Looked for `ui-kit-local` references
+
+Findings:
+- No references to `from "ui"` / `from 'ui'` were found in the workspace (excluding node_modules).
+- No references to `ui-kit-local` were found.
+- Client app imports for the chat widget and theme are all via `@tandem/ui-kit`:
+  - apps/client/pages/_app.js      → { ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit"
+  - apps/client/pages/index.js     → { ChatWidget } from "@tandem/ui-kit"
+  - apps/client/pages/chat.js      → { ChatWidget } from "@tandem/ui-kit"
+  - apps/client/pages/restaurant/[slug].js → { ChatWidget } from "@tandem/ui-kit"
+  - apps/client/pages/demo/windmill-creek.js → { ChatWidget } from "@tandem/ui-kit"
+
+Actions:
+- No alias fixes were required.
+
+5) Component refit for Windmill Creek tokens
+-------------------------------------------
+Updated components:
+- packages/ui-kit/src/components/chat/chat-input.tsx
+- packages/ui-kit/src/components/chat/chat-input.js (compiled mirror kept in sync)
+
+Changes applied:
+- Removed gradient-based send button background.
+- Send button background is now solid theme.colors.primary (#5C2E4A).
+- Send icon color now comes from theme.icons.sendArrow (#D9A441).
+- Input container and bar now use theme.colors.background and theme.radii.bubble.
+- Footer background and border now use theme.colors.surface and theme.shadows.rich for depth.
+- Icon and text colors use theme.colors.primary / highlight instead of hard-coded Tailwind grays.
+
+Other chat components:
+- ChatHeader, AgentBubble, UserBubble, TypingIndicator, ChatWidget currently use theme via useTheme and rely on theme.colors for primary/background.
+- No additional hard-coded gradients were found in chat-input after this refit.
+
+6) Build verification (ui-kit)
+------------------------------
+Command run:
+- cd /workspace/packages/ui-kit && npm run build
+
+Result:
+- TypeScript build completed successfully (tsc -p tsconfig.json) with no reported errors.
+- Confirms updated theme and ChatInput compile cleanly and are included in the dist output.
+
+7) File change summary
+----------------------
+Files deleted:
+- None
+
+Files archived to __archive_figma_originals__:
+- None (directory not created because no redundant Figma-original components were discovered that were safe to move).
+
+Files modified:
+- packages/ui-kit/src/lib/themes/windmill-creek.ts
+- packages/ui-kit/src/lib/themes/windmill-creek.js
+- packages/ui-kit/src/components/chat/chat-input.tsx
+- packages/ui-kit/src/components/chat/chat-input.js
+
+Duplicate components found:
+- packages/ui-kit/src/components/chat/ChatWidget.tsx
+- packages/ui-kit/src/components/chat/ChatWidget.js
+  - These form the TS source + compiled JS pair for the Figma-based ChatWidget used by @tandem/ui-kit; both are required for the current build and were left intact.
+
+Duplicate theme files found:
+- windmill-creek.ts / windmill-creek.js pair under packages/ui-kit/src/lib/themes
+  - TS file is the canonical theme source.
+  - JS file is the compiled/runtime mirror; both were updated to the same token values.
+
+Outdated tokens / variables removed:
+- None (no separate token files or legacy CSS variable sheets were present).
+
+8) Remaining cleanup recommendations
+------------------------------------
+- If you later introduce additional brand themes, consider moving theme definitions into a dedicated themes/ index and exporting a typed Theme interface that all themes must satisfy.
+- Once design is fully frozen, you may want to add unit or snapshot tests around ChatInput, ChatHeader, and ChatWidget to lock in key style tokens (colors, radii, gradients, and shadows) for regression protection.
+- Periodically clear `.next` and `dist` folders before major refactors to avoid confusing old build artifacts with source-level components.
+
+9) Final import verification
+----------------------------
+- All client-facing pages that render the chat UI import ChatWidget from `@tandem/ui-kit`.
+- ThemeProvider and windmillCreekTheme are also imported from `@tandem/ui-kit` in `_app.js`.
+- No remaining references to legacy `ui` or `ui-kit-local` aliases were found.
+
+10) Confirmation
+----------------
+- UI Kit rebuilt successfully with the finalized Windmill Creek theme tokens.
+- Send button uses a solid #5C2E4A background and token-based icon color.
+- No leftover Figma export artifacts or duplicate backup components were detected that needed removal or archiving.

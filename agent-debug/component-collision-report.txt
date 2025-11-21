@@ -1,0 +1,30 @@
+Component name collision / location report
+
+packages/ui:
+- index.js exports:
+  - named: ChatWidget from "./ChatWidget.jsx"
+  - default: ChatWidgetPlaceholder
+- ChatWidget implementation file:
+  - /workspace/packages/ui/ChatWidget.jsx (legacy avatar-style widget)
+
+packages/ui-kit:
+- New Figma-based components under /workspace/packages/ui-kit/src/components/chat/ including:
+  - ChatWidget.tsx
+  - ChatTrigger.tsx
+  - chat-header.tsx
+  - typing-indicator.tsx
+  - user-bubble.tsx
+  - agent-bubble.tsx
+- Theme + lib under /workspace/packages/ui-kit/src/lib/
+
+apps/client imports:
+- Restaurant page (/workspace/apps/client/pages/restaurant/[slug].js):
+  - `import { ChatWidget } from "@tandem/ui-kit";`
+- Other pages (index.js, chat.js, demo/windmill-creek.js) still import:
+  - `import { ChatWidget } from "ui";` (legacy package)
+
+Conclusion:
+- There are two different ChatWidget implementations:
+  - packages/ui/ChatWidget.jsx (legacy, used via alias "ui")
+  - packages/ui-kit/src/components/chat/ChatWidget.tsx (new Figma-based, used via @tandem/ui-kit where imported).
+- For the Windmill Creek restaurant page specifically, the active import is from @tandem/ui-kit, so it should be using the new widget; other pages may still show the old widget due to imports from "ui".

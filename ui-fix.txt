@@ -1,0 +1,99 @@
+UI-kit / ChatWidget diagnostic notes
+------------------------------------
+
+1) What the browser is actually running
+- Next dev Turbopack bundle for `/restaurant/[slug]` is loading `ChatWidget` from `packages/ui-kit/dist/components/chat/ChatWidget.js`.
+- The compiled `ChatWidget` in that bundle still contains the long seeded conversation array and passes `headerVariant` through from the prop:
+	- `const [messages, setMessages] = useState([... hard-coded agent/user messages ...])`
+	- `<ChatHeader variant: headerVariant, onClose: ... />`
+- The bundle’s `ChatHeader` comes from `packages/ui-kit/dist/components/chat/chat-header.js` and already has the three variants wired (`with-image`, `text-logo`, minimal) plus `ChatMenu` and `ImageWithFallback`.
+- The restaurant page component is compiled to import `ChatWidget` from `@tandem/ui-kit` via the dist entry: `packages/ui-kit/dist/index.js` → `./components/chat` → `ChatWidget`.
+
+2) Evidence we are on the local ui-kit
+- The Turbopack chunk explicitly references `[project]/packages/ui-kit/dist/...` paths (not `node_modules`), confirming we are using the workspace copy of `@tandem/ui-kit`.
+- The dev log shows repeated `Browser LOG     [ui-kit ChatWidget] Figma-style widget source is now running`, so the source-level `console.log` is making it through the pipeline after the last rebuild.
+
+3) Where reality diverges from intent
+- Source-of-truth intent for `ChatWidget` (what we want):
+	- No seeded conversation: `const [messages, setMessages] = useState([])`.
+	- Header forced to text-logo: `<ChatHeader variant="text-logo" onClose={() => setIsOpen(false)} />`.
+- Actual compiled dist currently served:
+	- Still seeds the full Windmill Creek conversation in the initial `useState` call.
+	- Still respects the `headerVariant` prop and defaults it to `"with-image"` instead of forcing `"text-logo"`.
+- This means the last `tsc` build that produced `dist/components/chat/ChatWidget.js` did not include the latest TypeScript edits (or Syncthing/another machine overwrote `dist` after we built).
+
+4) How the pipeline is wired
+- App import path: `apps/client/pages/...` → `import { ChatWidget } from "@tandem/ui-kit"`.
+- Package entry: `packages/ui-kit/package.json` → `"main": "dist/index.js"`.
+- ui-kit barrel: `dist/index.js` → re-exports from `./components/chat`.
+- Chat barrel: `dist/components/chat/index.js` → re-exports `ChatWidget` from `./ChatWidget`.
+- Next dev (Turbopack) compiles from the JS in `dist`, not directly from `src`, for this package.
+- Conclusion: any mismatch you see in the widget UI comes from `dist` being stale or out-of-sync with `src` when the dev server started or during a hot reload.
+
+5) Likely root causes of the stale UI
+- A) `npm run build` for `@tandem/ui-kit` never ran (or failed silently) after the last round of TS edits.
+	- Counterpoint: We have fresh timestamps on `dist` and the `console.log` string from the new source is present in the browser logs, so at least some parts of `ChatWidget.tsx` made it into `dist`.
+- B) A concurrent process (e.g., Syncthing, another machine) wrote an older `dist` over the new one after the local build.
+	- This would explain: new log message present (if coming from laptop build) while conversation seeding/header wiring came from whichever `dist` was last written.
+- C) There are two working copies of this repo (PC vs. laptop), each building ui-kit and syncing only parts of `dist`, so the effective `dist` is a mix of versions.
+- D) Next dev cache `.next` is holding onto an older graph for the ui-kit package (less likely, because the Turbopack chunk we read clearly shows the current paths and log string).
+
+6) Concrete actions to bring the widget fully in sync
+
+On the machine that is actually running `npm run dev` for `apps/client`:
+
+1) Hard reset ui-kit build artifacts
+- From repo root:
+	- `cd packages/ui-kit`
+	- `rm -rf dist`
+	- `npm install` (if not already done in this container)
+	- `npm run build`
+- Verify that `dist/components/chat/ChatWidget.js` now shows:
+	- `useState([])` for `messages` with no seed array.
+	- `<ChatHeader variant: "text-logo", ...>` (or the equivalent transpiled code).
+
+2) Clear Next/Turbopack caches on the same machine
+- Stop the dev server completely.
+- From `apps/client` (or repo root):
+	- `rm -rf .next`
+- Restart dev: `npm run dev` (from `apps/client` or via the monorepo script you normally use).
+- Reload the browser on `/restaurant/windmill-creek` and confirm:
+	- No initial seeded conversation messages are present.
+	- Header shows the text-logo bar variant.
+
+3) Eliminate multi-machine / Syncthing conflicts
+- Ensure only one “authoritative” machine is allowed to write to `packages/ui-kit/dist`.
+	- Option 1: Exclude `packages/ui-kit/dist` from Syncthing and let each machine build its own local `dist`.
+	- Option 2: Pick a single machine (e.g., laptop) as the source of truth; only build there and let Syncthing propagate, but avoid building on the other machine.
+- Do a one-time clean sync:
+	- On all machines: stop Next dev.
+	- On all machines: `rm -rf packages/ui-kit/dist apps/client/.next`.
+	- On the canonical machine: `cd packages/ui-kit && npm run build`.
+	- Let that `dist` replicate.
+	- Restart `npm run dev` only after sync is finished.
+
+4) Guardrails / instrumentation
+- Keep the `[ui-kit ChatWidget] Figma-style widget source is now running` log in place for now.
+- Add a one-liner log to the UI to prove which header variant is active:
+	- For example in `ChatHeader.tsx` render: `console.log('[ui-kit ChatHeader]', variant)`.
+- In the browser console, confirm that:
+	- The log appears on widget open.
+	- It reports `text-logo` once the forced variant change is in the built `dist`.
+
+5) Long-term hygiene plan
+- Treat `packages/ui-kit/dist` as a build artifact:
+	- Exclude it from sync tooling where possible.
+	- Consider adding it to `.gitignore` and not committing it if your publishing flow allows.
+- Prefer a single “build & publish” machine or a CI step that owns generating `dist`.
+- When debugging any future ui-kit change, always:
+	- Edit `src`.
+	- Run `npm run build` in `packages/ui-kit`.
+	- Restart `npm run dev` in `apps/client` with `.next` cleared if behavior looks stale.
+
+Snapshot conclusion
+-------------------
+
+- The browser is definitively running `ChatWidget` from `packages/ui-kit/dist`, not from `src`.
+- The current `dist` copy of `ChatWidget` still contains the seeded conversation and `headerVariant` passthrough, so visual behavior matches that old code.
+- Logs show that the new source changes have been built at least once, but `dist` is not consistently aligned with the latest TS edits—most likely due to rebuild timing and/or multi-machine sync overwriting.
+- Cleaning `dist` and `.next`, rebuilding ui-kit on the dev machine that runs Next, and tightening how `dist` is shared between machines should fully align the runtime UI with the current `src` implementation.

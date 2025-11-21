@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { ChatWidget } from "ui";
 import { useRouter } from "next/router";
 
-export default function RestaurantPage() {
+export default function RestaurantPage(props) {
   const router = useRouter();
   const { slug } = router.query || {};
   console.log("PARAMS:", slug);
@@ -109,8 +108,17 @@ export default function RestaurantPage() {
         />
       </section>
 
-      {/* Chat widget only (anchored bottom-right) */}
-      <ChatWidget restaurantId={restaurant?.id || slug} />
+      {/* Chat widget is handled globally via TandemWidgetWrapper in _app.js */}
     </div>
   );
+}
+
+export async function getServerSideProps(context) {
+  const { slug } = context.params || {};
+
+  return {
+    props: {
+      restaurantId: slug || null,
+    },
+  };
 }

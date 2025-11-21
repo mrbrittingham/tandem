@@ -1,5 +1,5 @@
 import React from "react";
-import { ChatWidget } from "ui";
+import { ChatWidget } from "@tandem/ui-kit";
 
 export default function WindmillDemo() {
   const id = "windmill-creek";

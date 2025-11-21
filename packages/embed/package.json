@@ -1,0 +1,11 @@
+{
+  "name": "@tandem/embed",
+  "version": "0.0.0",
+  "main": "dist/embed.js",
+  "scripts": {
+    "build": "esbuild embed.ts --bundle --format=iife --global-name=TandemEmbed --outfile=dist/embed.js --minify"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

@@ -3,7 +3,8 @@
     "baseUrl": ".",
     "paths": {
       "ui/*": ["../../packages/ui/*"],
-      "ui": ["../../packages/ui"]
+      "ui": ["../../packages/ui"],
+      "@/*": ["./*"]
     }
   }
 }
