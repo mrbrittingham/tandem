@@ -1,0 +1,50 @@
+Next.js compiled output analysis for ui-kit on restaurant route
+
+1) Presence of ui-kit symbols in .next
+- Searched in /workspace/apps/client/.next (including ignored files) for:
+  - ChatTrigger
+  - windmillCreekTheme
+- Results:
+  - Found many matches in JS source maps and compiled chunks for:
+    - windmillCreekTheme from packages/ui-kit/src/lib/themes/windmill-creek.ts and dist/lib/themes/windmill-creek.js.
+    - ThemeProvider and useTheme from packages/ui-kit/src/lib/theme-context.tsx and dist/lib/theme-context.js.
+    - ChatTrigger from packages/ui-kit/dist/components/chat/ChatTrigger.js.
+    - ChatWidget from packages/ui-kit/dist/components/chat/ChatWidget.js.
+  - Source maps clearly show that /apps/client/pages/restaurant/[slug].js imports:
+    - { ChatWidget, ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit".
+
+2) Evidence that the compiled bundle uses the new Figma widget
+- In /workspace/apps/client/.next/dev/static/chunks/*.__187b3d5d._.js.map, sources include:
+  - file:///workspace/packages/ui-kit/dist/components/chat/ChatTrigger.js
+  - file:///workspace/packages/ui-kit/dist/components/chat/ChatWidget.js
+- The mapped sourcesContent for ChatWidget.js show the new implementation:
+  - Imports ChatTrigger from "./ChatTrigger".
+  - Uses useTheme from "../../lib/theme-context".
+  - Manages isOpen state, showTyping, etc.
+  - Renders:
+    - ChatTrigger when !isOpen.
+    - A fixed-position panel with ChatHeader, messages, ChatInput, and powered-by footer when isOpen.
+  - Contains the debug log:
+    - console.log("[ui-kit ChatWidget] Figma-style widget source is now running");
+- ChatTrigger.js sourcesContent show:
+  - A circular fixed-position button at bottom-right, themed by ui-kit.
+
+3) Restaurant page compiled usage
+- Multiple chunks’ source maps reference:
+  - file:///workspace/apps/client/pages/restaurant/%5Bslug%5D.js
+  - With contents importing { ChatWidget, ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit".
+  - The compiled code wraps the restaurant content in <ThemeProvider defaultTheme={windmillCreekTheme}> and renders <ChatWidget />.
+
+4) Conclusion from compiled analysis
+- The Next.js dev build is already including the **new** ui-kit ChatWidget and ChatTrigger in the module graph.
+- There is no compiled reference to a ChatWidget from the legacy packages/ui inside the restaurant route’s bundle.
+- Therefore, any observation of the "old" widget on the restaurant route cannot be due to Next.js serving the legacy ChatWidget implementation; it is using the ui-kit version from dist/components/chat/ChatWidget.js.
+- Per the compiled ChatWidget.js, the correct behavior is:
+  - When the page loads, you see only the circular ChatTrigger at bottom-right.
+  - Clicking it opens the fixed-position Figma-style chat panel with the new header, bubbles, and layout.
+
+Implication:
+- If the visual appearance still looks like the old widget, it may be because:
+  - The old and new designs share similar avatar/trigger positioning in your mental model, or
+  - The CSS/inline styles in the new widget resemble the previous design more than expected.
+- But from a compiled-code perspective, the restaurant route is already using the ui-kit ChatWidget; there is no stale or incorrect module graph for that page.

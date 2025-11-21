@@ -1,0 +1,291 @@
+Here’s what the integration is actually doing and how it relates to the header behavior, without making any code changes yet.
+
+**1. Global wrapper integration (`_app.js` + floating widget)**
+
+- `apps/client/pages/_app.js`:
+
+  ```js
+  import { ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit";
+  import { FloatingChatWidget } from "../components/widget/FloatingChatWidget";
+
+  export default function MyApp({ Component, pageProps }) {
+    return (
+      <ThemeProvider theme={windmillCreekTheme}>
+        <Component {...pageProps} />
+        {/* Floating widget with trigger + unread badge behavior */}
+        <FloatingChatWidget restaurantId={pageProps?.restaurantId} />
+      </ThemeProvider>
+    );
+  }
+  ```
+
+  - Always wraps the app in the ui-kit `ThemeProvider` with `windmillCreekTheme`.
+  - Globally mounts `FloatingChatWidget`, passing `restaurantId` from `pageProps` (e.g., from `[slug].js`).
+
+- `apps/client/components/widget/FloatingChatWidget.tsx`:
+
+  ```tsx
+  import { ChatWidget } from "@tandem/ui-kit";
+
+  interface FloatingChatWidgetProps {
+    restaurantId?: string;
+  }
+
+  export function FloatingChatWidget({ restaurantId }: FloatingChatWidgetProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(1); // intro message
+    const [hasPopped, setHasPopped] = useState(false);
+
+    const handleToggle = useCallback(() => {
+      setIsOpen((open) => {
+        const next = !open;
+        if (next) {
+          setUnreadCount(0);
+        }
+        return next;
+      });
+    }, []);
+
+    const handleNewMessage = useCallback(() => {
+      setUnreadCount((count) => (isOpen ? count : count + 1));
+    }, [isOpen]);
+
+    // one-time pop animation
+    useEffect(() => {
+      if (hasPopped) return;
+      const timer = setTimeout(() => {
+        setHasPopped(true);
+      }, 10);
+      return () => clearTimeout(timer);
+    }, [hasPopped]);
+
+    return (
+      <>
+        <FloatingChatTrigger
+          onClick={handleToggle}
+          showNotification={unreadCount > 0}
+          className={!hasPopped ? "tandem-trigger-pop" : undefined}
+        />
+        {isOpen && (
+          <div style={{ position: "fixed", right: 24, bottom: 24, zIndex: 99999, animation: "tandem-widget-pop 200ms ease-out" }}>
+            <ChatWidget
+              restaurantId={restaurantId}
+              onAgentMessage={handleNewMessage}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
+  ```
+
+- Key points relative to your questions:
+
+  - **Header variant**: `FloatingChatWidget` does **not** pass `headerVariant` to `ChatWidget`, so it uses the default from ui-kit: `headerVariant = "text-logo"`.
+  - **Props overridden**:
+    - It passes `restaurantId`.
+    - It passes `onAgentMessage` to track unread badge count.
+    - It does **not** pass `onClose` or `onOpen`; instead it controls visibility entirely with `isOpen` + `FloatingChatTrigger`. `ChatWidget` is only mounted when `isOpen` is true.
+    - Because `onClose` is not passed, `ChatWidget`’s internal `handleMinimize` (which calls `onClose`) currently has no effect on `FloatingChatWidget` state.
+  - **Which widget is used**:
+    - It imports `ChatWidget` directly from `@tandem/ui-kit` (the same package you confirmed at `/workspace/packages/ui-kit/dist`).
+    - It does **not** import any older or local ChatWidget; it is using the canonical ui-kit ChatWidget.
+  - **Wrapper header UI**:
+    - `FloatingChatWidget` does **not** render any header of its own; it delegates fully to ui-kit’s `ChatWidget` → `ChatHeader`.
+
+- `apps/client/components/widget/FloatingChatTrigger.tsx`:
+
+  ```tsx
+  import { ChatTrigger, useTheme } from "@tandem/ui-kit";
+  import { WidgetIcon } from "./WidgetIcon";
+
+  export function FloatingChatTrigger({ onClick, showNotification, className, ...rest }: FloatingChatTriggerProps) {
+    const { theme } = useTheme();
+    const iconName = (theme as any).widgetIcon ?? "Amber-Rise";
+
+    return (
+      <ChatTrigger
+        onClick={onClick}
+        showNotification={showNotification}
+        iconName={iconName}
+        className={className}
+        {...rest}
+        renderIcon={() => (
+          <WidgetIcon
+            name={iconName as any}
+            className="h-20 w-20 rounded-full shadow-xl"
+          />
+        )}
+      />
+    );
+  }
+  ```
+
+  - This only controls the **floating trigger** (badge, animation, icon), not the header.
+
+**2. Restaurant page and how wrapper is mounted**
+
+- `apps/client/pages/restaurant/[slug].js`:
+
+  - Does not import `ChatWidget` or `FloatingChatWidget`.
+  - Fetches restaurant data and sets hero image.
+  - Comment:
+
+    ```jsx
+    {/* Chat widget is handled globally via TandemWidgetWrapper in _app.js */}
+    ```
+
+  - `getServerSideProps` returns:
+
+    ```js
+    return {
+      props: {
+        restaurantId: slug || null,
+      },
+    };
+    ```
+
+  - As seen, `_app.js` reads `pageProps?.restaurantId` and passes it into `FloatingChatWidget`, so:
+
+    - On `/restaurant/windmill-creek`, the floating widget instance is the same `FloatingChatWidget` mounted globally, with `restaurantId="windmill-creek"`.
+    - The restaurant page itself provides **no additional header**; it relies entirely on the ui-kit widget.
+
+**3. Header variants active on different routes**
+
+From code inspection:
+
+- **Default in ui-kit `ChatWidget`**: `headerVariant = "text-logo"`.
+- **Routes:**
+
+  - `/chat` (`apps/client/pages/chat.js`):
+
+    ```jsx
+    <ChatWidget restaurantId={restaurant} />
+    ```
+
+    - This uses ui-kit `ChatWidget` directly.
+    - No `headerVariant` prop is passed → uses `"text-logo"`.
+    - Should display the **text-logo variant**, which is the one wired to `ChatMenu` and the dropdown behavior.
+
+  - `/demo/windmill-creek` (`apps/client/pages/demo/windmill-creek.js`):
+
+    ```jsx
+    <ChatWidget restaurantId={id} />
+    ```
+
+    - Same: no `headerVariant` prop.
+    - Also uses `"text-logo"`.
+
+  - `/restaurant/windmill-creek`:
+
+    - The actual widget is the **global** `FloatingChatWidget` rendered in `_app.js` (not in `[slug].js`).
+    - `FloatingChatWidget` mounts:
+
+      ```tsx
+      <ChatWidget restaurantId={restaurantId} onAgentMessage={handleNewMessage} />
+      ```
+
+    - Again, no `headerVariant` prop.
+    - So on restaurant pages, the active header variant is also `"text-logo"`.
+
+- Summary of header variants per route (by code):
+
+  - `/chat` → `ChatWidget` with `headerVariant="text-logo"`.
+  - `/demo/windmill-creek` → `ChatWidget` with `headerVariant="text-logo"`.
+  - `/restaurant/windmill-creek` → `FloatingChatWidget` → `ChatWidget` with `headerVariant="text-logo"`.
+
+If you are seeing a **with-image style header** at runtime on any of these, that’s inconsistent with current source and suggests either:
+
+- You’re looking at a different integration (e.g., an embed from `packages/embed` in another app), or
+- There is a stale compiled chunk for an older version of `ChatWidget` or `ChatHeader` in the running dev server.
+
+**4. Where `onClose` / open-close is handled**
+
+- In ui-kit `ChatWidget` (from dist):
+
+  - `handleMinimize`:
+
+    ```js
+    const handleMinimize = () => {
+      if (onClose) {
+        onClose();
+      }
+    };
+    ```
+
+  - It passes `onMinimize={handleMinimize}` and `onClose={onClose}` into `ChatHeader`.
+
+- In the current global wrapper (`FloatingChatWidget`):
+
+  - It **does not pass `onClose`** to `ChatWidget`. Only `restaurantId` and `onAgentMessage`.
+  - It controls visibility like this:
+
+    - `isOpen` toggled by `handleToggle` when clicking `FloatingChatTrigger`.
+    - When `isOpen` is `true`, it renders the ChatWidget container:
+
+      ```tsx
+      {isOpen && (
+        <div ...>
+          <ChatWidget
+            restaurantId={restaurantId}
+            onAgentMessage={handleNewMessage}
+          />
+        </div>
+      )}
+      ```
+
+  - Result: The minimize/close button in `ChatHeader` currently **has no effect** on `isOpen`, because `onClose` is `undefined`. So the user can open/close only via the floating trigger.
+
+- There is **no duplicate header** in the wrapper; all header UI comes from ui-kit.
+
+**5. Answers to your explicit questions**
+
+- **Does the wrapper pass `headerVariant`?**
+  - No. Neither `FloatingChatWidget` nor `_app.js` passes `headerVariant`. All uses of `ChatWidget` rely on the default `"text-logo"`.
+
+- **Does it override any props such as `onClose`, `onOpen`, or `headerVariant`?**
+  - It overrides **only**:
+    - `restaurantId` (passes through).
+    - `onAgentMessage` (to track unread messages).
+  - It does **not** override `headerVariant` or `onClose`.
+
+- **Is the wrapper importing `FloatingChatWidget` or an older widget?**
+  - `_app.js` imports the local `FloatingChatWidget` from `../components/widget/FloatingChatWidget`.
+  - `FloatingChatWidget` imports `ChatWidget` from `@tandem/ui-kit` (canonical ui-kit widget, not a legacy/local copy).
+
+- **Is the wrapper using a hard-coded header style (like `with-image`)?**
+  - No. It never passes `headerVariant="with-image"`.
+
+- **Is the wrapper controlling `isOpen` or message state?**
+  - It controls:
+    - `isOpen` (whether ChatWidget is mounted).
+    - `unreadCount` (for trigger badge), via callbacks from `onAgentMessage`.
+    - It does **not** touch message history inside ChatWidget — that remains internal to the ui-kit widget.
+
+- **Whether duplicate header UI exists in the wrapper:**
+  - No duplicate header rendered by `FloatingChatWidget` or `_app.js`.
+
+- **Where `onClose` is handled:**
+  - In ui-kit `ChatWidget`, but currently:
+    - Wrapper never passes `onClose`, so `handleMinimize` is effectively a no-op.
+    - Open/close is controlled only by `FloatingChatTrigger` via `isOpen` state in `FloatingChatWidget`.
+
+- **Whether the wrapper is using the correct `ChatWidget`:**
+  - Yes. All imports point to `@tandem/ui-kit` (which we already resolved to `/workspace/packages/ui-kit/dist/index.js`).
+
+---
+
+At this point, code inspection shows that **all three primary routes** (`/chat`, `/demo/windmill-creek`, `/restaurant/[slug]` via the global widget) should be using the **text-logo header variant** with the new dropdown menu and handlers in the currently resolved ui-kit dist.
+
+If, while the dev server is running, you still see:
+
+- A `with-image` header on restaurant pages, or
+- No dropdown menu / legacy header,
+
+that strongly points to a stale Next.js build or some other running instance using old compiled ui-kit chunks.
+
+Per your instructions, I’ll pause here and not restart any processes.
+
+If you’d like, the next step I can guide you through (without running commands myself) is:
+
+- How to fully clear Next.js’ `.next` build cache in `apps/client` and then restart `npm run dev` to ensure it picks up the current `/workspace/packages/ui-kit/dist` bundle.

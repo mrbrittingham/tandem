@@ -1,0 +1,91 @@
+{
+  "restaurant": {
+    "id": "windmill-creek",
+    "name": "Windmill Creek Winery & Farm Kitchen",
+    "short_name": "Windmill Creek",
+    "description": "Winery & farm kitchen located in Berlin, MD — seasonal menus, events, and tastings.",
+    "phone": "410-251-6122",
+    "website": "https://windmillcreekvineyard.com/",
+    "hours": "Daily: 12 PM - 8:30 PM (seasonal)",
+    "address": "11206 Worcester Hwy, Berlin, MD"
+  },
+  "faqs": [
+    {
+      "id": 1,
+      "question": "Do you take reservations?",
+      "answer": "Yes — we accept reservations for dining and special events. Use our reservation form or call us."
+    },
+    {
+      "id": 2,
+      "question": "Do you offer outdoor seating?",
+      "answer": "Yes — we have patios and outdoor seating when weather permits."
+    },
+    {
+      "id": 3,
+      "question": "Is there a tasting room?",
+      "answer": "Yes — we have a winery tasting room and offer flights and bottle sales."
+    }
+  ],
+  "menus": [
+    {
+      "id": "kids",
+      "title": "Kids Menu",
+      "items": [
+        {
+          "id": "kids-menu",
+          "name": "Kids Menu",
+          "price": 8,
+          "description": "Served with house chips, or add a side for $3."
+        },
+        { "id": "grilled-cheese", "name": "Grilled Cheese" },
+        { "id": "mac-and-cheese", "name": "Cheesy Mac & Cheese" },
+        { "id": "chicken-strips", "name": "Crispy Chicken Strips" },
+        {
+          "id": "kids-gluten-free",
+          "name": "Gluten free upon request",
+          "description": "Sides $3: French Fries, Sweet Potato Fries, Fruit, Applesauce"
+        }
+      ]
+    },
+    {
+      "id": "salads-soup",
+      "title": "Salads & Soup",
+      "items": [
+        {
+          "id": "winter-salad",
+          "name": "Winter Salad",
+          "price": 15,
+          "description": "Roasted butternut squash, brussels sprouts, red onion, dried fruit, pumpkin seeds, and bacon over mixed greens with maple-Dijon vinaigrette.",
+          "notes": "(GF) Pairing: Viognier"
+        },
+        {
+          "id": "baked-brie-salad",
+          "name": "Baked Brie Salad",
+          "price": 15,
+          "description": "Warm baked Brie with mixed greens, cashews, seasonal berries, and rosé vinaigrette.",
+          "notes": "Pairing: Rosé"
+        }
+      ]
+    },
+    {
+      "id": "starters",
+      "title": "Lite Fare / Starters",
+      "items": [
+        {
+          "id": "strip-steak-au-poivre",
+          "name": "Strip Steak Au Poivre & Wildfire Blue",
+          "price": 22,
+          "description": "4oz pepper-crusted New York strip with Wildfire blue cheese, onion jam, and orange-infused oil.",
+          "notes": "(GF) Pairing: Merlot"
+        },
+        {
+          "id": "braised-short-ribs",
+          "name": "Braised Short Ribs",
+          "price": 30,
+          "description": "Braised in house red wine with mushrooms and broccolini over polenta.",
+          "notes": "Pairing: Chambourcin"
+        }
+      ]
+    }
+  ]
+}

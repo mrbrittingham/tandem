@@ -1,0 +1,1 @@
+Chat widget and floating trigger updated to align with Figma Windmill Creek design tokens and layout. ui-kit rebuilt successfully.

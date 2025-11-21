@@ -1,0 +1,17 @@
+apps/client/public asset scan:
+
+Active/likely used assets:
+- tandem-widget.jpg (design reference for floating widget button; not yet wired in code but kept as canonical visual reference).
+- assets/logos/wmc-text.png (Windmill Creek text logo used via theme branding).
+- assets/logos/wmc-flower.png (Windmill Creek flower logo, available for hero/header usage).
+- assets/hero/windmill-hero.jpg (Windmill hero image referenced by branding.heroImage in theme).
+- restaurants/windmill-creek/hero-image.jpg, hero.svg, avatar.svg, menu-placeholder.svg (restaurant-specific assets used by client pages.
+
+Archived as potentially unused/legacy:
+- widget-avatar@32.png
+- widget-avatar@64.png
+- widget-avatar@128.png
+- widget-avatar@256.png
+
+These were moved to: apps/client/public/_archive
+Rationale: no references found in client code (excluding .next), and superseded by the new floating widget design.

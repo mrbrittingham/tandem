@@ -1,0 +1,9 @@
+Changes in this run (20251121-0312):
+- Updated packages/embed/shadow-root.ts to inline base styles for a self-contained Shadow DOM root.
+- Refactored packages/embed/embed.ts to expose a TandemEmbed.init(options) global, mounting a minimal floating button + panel into a shadow root and fetching /api/public/chatbot-config.
+- Adjusted packages/embed/package.json build script to use esbuild with IIFE format and global name TandemEmbed, outputting dist/embed.js.
+- Converted ChatWidget (packages/ui-kit/src/components/chat/ChatWidget.tsx) into a pure framed widget (400x650, themed background, radius, shadows) without internal fixed positioning or open/close state.
+- Added TandemWidgetWrapper (packages/ui-kit/src/components/chat/TandemWidgetWrapper.tsx) to manage open/close and position ChatWidget plus ChatTrigger at bottom-right, ensuring a single instance.
+- Exported TandemWidgetWrapper from ui-kit chat index.ts and mounted it in apps/client/pages/_app.js so the floating widget appears globally.
+- Removed direct ChatWidget usage from apps/client/pages/restaurant/[slug].js; the wrapper now owns widget rendering.
+- Triggered ui-kit and embed builds (see embed-build/summary logs for outcomes).

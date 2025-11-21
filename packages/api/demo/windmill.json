@@ -1,0 +1,278 @@
+{
+  "restaurant": {
+    "id": "windmill-creek",
+    "name": "Windmill Creek Winery & Farm Kitchen",
+    "short_name": "Windmill Creek",
+    "description": "Winery & farm kitchen located in Berlin, MD — seasonal menus, events, and tastings.",
+    "phone": "410-251-6122",
+    "website": "https://windmillcreekvineyard.com/",
+    "hours": "Daily: 12 PM - 8:30 PM (seasonal)",
+    "address": "11206 Worcester Hwy, Berlin, MD"
+  },
+  "faqs": [
+    {
+      "id": 1,
+      "question": "Do you take reservations?",
+      "answer": "Yes — we accept reservations for dining and special events. Use our reservation form or call us."
+    },
+    {
+      "id": 2,
+      "question": "Do you offer outdoor seating?",
+      "answer": "Yes — we have patios and outdoor seating when weather permits."
+    },
+    {
+      "id": 3,
+      "question": "Is there a tasting room?",
+      "answer": "Yes — we have a winery tasting room and offer flights and bottle sales."
+    }
+  ],
+  "menus": [
+    {
+      "id": "kids",
+      "title": "Kids Menu",
+      "items": [
+        {
+          "id": "kids-menu",
+          "name": "Kids Menu",
+          "price": 8,
+          "description": "Served with house chips, or add a side for $3."
+        },
+        { "id": "grilled-cheese", "name": "Grilled Cheese" },
+        { "id": "mac-and-cheese", "name": "Cheesy Mac & Cheese" },
+        { "id": "chicken-strips", "name": "Crispy Chicken Strips" },
+        {
+          "id": "kids-gluten-free",
+          "name": "Gluten free upon request",
+          "description": "Sides $3: French Fries, Sweet Potato Fries, Fruit, Applesauce"
+        }
+      ]
+    },
+    {
+      "id": "salads-soup",
+      "title": "Salads & Soup",
+      "items": [
+        {
+          "id": "winter-salad",
+          "name": "Winter Salad",
+          "price": 15,
+          "description": "Roasted butternut squash, brussels sprouts, red onion, dried fruit, pumpkin seeds, and bacon over mixed greens with maple-Dijon vinaigrette.",
+          "notes": "(GF) Pairing: Viognier"
+        },
+        {
+          "id": "baked-brie-salad",
+          "name": "Baked Brie Salad",
+          "price": 15,
+          "description": "Warm baked Brie with mixed greens, cashews, seasonal berries, and rosé vinaigrette.",
+          "notes": "Pairing: Rosé"
+        },
+        {
+          "id": "crab-corn-chowder",
+          "name": "Crab and Corn Chowder",
+          "price": 12,
+          "description": "Crab, corn, celery, potatoes, onions, sherry, crab stock, and cream.",
+          "notes": "Pairing: Chardonnay"
+        },
+        {
+          "id": "chefs-soup",
+          "name": "Chef’s Soup of the Day",
+          "price": 12,
+          "description": "Ask about today’s selection."
+        }
+      ]
+    },
+    {
+      "id": "starters",
+      "title": "Lite Fare / Starters",
+      "items": [
+        {
+          "id": "strip-steak-au-poivre",
+          "name": "Strip Steak Au Poivre & Wildfire Blue",
+          "price": 22,
+          "description": "4oz pepper-crusted New York strip with Wildfire blue cheese, onion jam, and orange-infused oil.",
+          "notes": "(GF) Pairing: Merlot"
+        },
+        {
+          "id": "bacon-wrapped-scallops",
+          "name": "Bacon Wrapped Scallops",
+          "price": 20,
+          "description": "Served with house BBQ sauce and horseradish aioli.",
+          "notes": "Pairing: Viognier"
+        },
+        {
+          "id": "fried-oysters",
+          "name": "Fried Oysters",
+          "price": 18,
+          "description": "Lightly dusted and served with Cajun remoulade.",
+          "notes": "Pairing: Sauvignon Blanc"
+        },
+        {
+          "id": "crabcake-sandwich",
+          "name": "Crabcake Sandwich",
+          "price": 22,
+          "description": "Lump crab cake on toasted bun with lettuce, tomato, and Mariner’s secret sauce.",
+          "notes": "Pairing: Summer Red"
+        },
+        {
+          "id": "fried-green-tomato-grilled-cheese",
+          "name": "Fried Green Tomato Grilled Cheese",
+          "price": 16,
+          "description": "Fried green tomato, bacon jam, provolone, and fontina on sourdough.",
+          "notes": "Pairing: Chambourcin"
+        },
+        {
+          "id": "crab-dip",
+          "name": "Crab Dip",
+          "price": 20,
+          "description": "Warm Chesapeake crab dip with toasted breads.",
+          "notes": "Pairing: Sauvignon Blanc"
+        },
+        {
+          "id": "brats-red-dragon-dip",
+          "name": "Brats & Red Dragon Ale Cheese Dip",
+          "price": 20,
+          "description": "Bratwurst, ale cheese dip, fried pickles, pretzel sticks, melted Red Dragon and cheddar.",
+          "notes": "Pairing: Bruised Reed Reserve"
+        },
+        {
+          "id": "baked-camembert",
+          "name": "Baked Camembert",
+          "price": 20,
+          "description": "Hot melted Camembert topped with apple-pear chutney, candied pecans, artisan bread.",
+          "notes": "Pairing: Chardonnay"
+        },
+        {
+          "id": "cheese-char-2",
+          "name": "Cheese & Charcuterie (For 2)",
+          "price": 25,
+          "description": "Cow, goat, and sheep cheeses with salami, prosciutto, seasonal accompaniments, and artisan bread.",
+          "notes": "Pairing: Chardonnay"
+        },
+        {
+          "id": "cheese-char-6",
+          "name": "Cheese & Charcuterie (For 6)",
+          "price": 50,
+          "description": "Expanded selection sized for six.",
+          "notes": "Pairing: Chardonnay"
+        }
+      ]
+    },
+    {
+      "id": "sandwiches",
+      "title": "Sandwiches",
+      "items": [
+        {
+          "id": "beast-burger",
+          "name": "The Beast Burger",
+          "price": 22,
+          "description": "Wagyu, elk, bison, and wild boar blend with cranberry Stilton, cherry-chipotle BBQ, cha-cha sauce, and arugula on oat-wheat Kaiser roll.",
+          "notes": "Pairing: Bruised Reed Reserve"
+        },
+        {
+          "id": "turkey-brie",
+          "name": "Turkey & Brie Sandwich",
+          "price": 16,
+          "description": "Roasted turkey, Brie, arugula, apple butter, and curry honey mustard on cranberry bread.",
+          "notes": "Pairing: Chardonnay"
+        }
+      ]
+    },
+    {
+      "id": "entrees",
+      "title": "Entrees",
+      "items": [
+        {
+          "id": "blackened-swordfish",
+          "name": "Blackened Swordfish",
+          "price": 30,
+          "description": "Over andouille and red bean risotto with roasted red pepper aioli.",
+          "notes": "Pairing: Merlot"
+        },
+        {
+          "id": "lamb-ragout",
+          "name": "Lamb Ragout over Gnocchi",
+          "price": 25,
+          "description": "Slow-cooked leg of lamb with capers, olives, and shaved parmesan.",
+          "notes": "Pairing: Bruised Reed Reserve"
+        },
+        {
+          "id": "braised-short-ribs",
+          "name": "Braised Short Ribs",
+          "price": 30,
+          "description": "Braised in house red wine with mushrooms and broccolini over polenta.",
+          "notes": "Pairing: Chambourcin"
+        },
+        {
+          "id": "crab-stuffed-chicken",
+          "name": "Crab Stuffed Chicken Imperial",
+          "price": 35,
+          "description": "Crab-stuffed chicken over roasted vegetables and fingerling potatoes.",
+          "notes": "Pairing: Sauvignon Blanc"
+        }
+      ]
+    },
+    {
+      "id": "flatbreads",
+      "title": "Flatbreads",
+      "items": [
+        {
+          "id": "med-flatbread",
+          "name": "Mediterranean Flatbread",
+          "price": 20,
+          "description": "Artichokes, roasted red peppers, arugula, pesto, heirloom tomatoes.",
+          "notes": "Pairing: Sauvignon Blanc"
+        },
+        {
+          "id": "triple-berry-flatbread",
+          "name": "Triple Berry Flatbread",
+          "price": 20,
+          "description": "Blackberries, blueberries, strawberries, goat cheese, basil, apricot hot honey.",
+          "notes": "Pairing: Rosé"
+        },
+        {
+          "id": "duck-fig-flatbread",
+          "name": "Duck, Prosciutto & Fig Flatbread",
+          "price": 22,
+          "description": "Duck, fig jam, Brie, crispy prosciutto, arugula.",
+          "notes": "Pairing: Bruised Reed Reserve"
+        },
+        {
+          "id": "seafood-flatbread",
+          "name": "Seafood Flatbread",
+          "price": 24,
+          "description": "Shrimp, crab, Brie, provolone, bacon, Old Bay.",
+          "notes": "Pairing: Chardonnay"
+        }
+      ]
+    },
+    {
+      "id": "desserts",
+      "title": "Desserts",
+      "items": [
+        {
+          "id": "pumpkin-lava-cake",
+          "name": "Pumpkin Lava Cake",
+          "price": 10,
+          "notes": "Pairing: Viognier"
+        },
+        {
+          "id": "chocolate-italian-love-cake",
+          "name": "Chocolate Italian Love Cake",
+          "price": 10,
+          "notes": "Pairing: Chambourcin"
+        },
+        {
+          "id": "cheesecake-red-wine-caramel",
+          "name": "Cheesecake with House Red Wine Caramel",
+          "price": 10,
+          "notes": "Pairing: Merlot"
+        },
+        {
+          "id": "flourless-chocolate-cake",
+          "name": "Flourless Chocolate Cake",
+          "price": 10,
+          "notes": "(GF) Pairing: Summer Red"
+        }
+      ]
+    }
+  ]
+}

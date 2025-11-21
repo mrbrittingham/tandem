@@ -1,0 +1,218 @@
+Here’s what I implemented across the Windmill Creek chatbot stack.
+
+**1. Trigger animation (size + one-time pop)**
+
+- `FloatingChatTrigger.tsx`
+  - Still renders via ui-kit `ChatTrigger`, but now:
+    - Extends `React.HTMLAttributes<HTMLButtonElement>` so it can receive `className` and data props generically.
+    - For Windmill Creek, it renders the icon as `className="h-16 w-16"` (≈50% larger than before).
+- `FloatingChatWidget.tsx`
+  - Maintains `isOpen` and `unreadCount` behavior.
+  - Adds `hasPopped` state and a mount-time `useEffect` that marks it `true` once, so the animation only runs on first load.
+  - Attaches the CSS class directly:
+    ```tsx
+    <FloatingChatTrigger
+      onClick={handleToggle}
+      showNotification={unreadCount > 0}
+      className={!hasPopped ? "tandem-trigger-pop" : undefined}
+    />
+    ```
+- `packages/ui-kit/src/global.css`
+  - Reuses your existing keyframes to define a trigger-specific animation:
+    ```css
+    .tandem-trigger-pop {
+      animation: tandem-notification-pop 320ms ease-out;
+    }
+    ```
+- Result: The trigger is larger and runs a single pop-in animation on first page load, then stays still; behavior is generic and will work anywhere `FloatingChatWidget` mounts.
+
+**2. Restore real live chat logic (no sample transcript)**
+
+- `packages/ui-kit/src/components/chat/ChatWidget.tsx`
+  - The widget is now the live, API-backed implementation; the old hard-coded demo transcript is gone:
+    - Removed the baked-in `useState([...])` sample messages.
+    - Instead, initializes to a single, dynamic welcome message:
+      ```ts
+      const [messages, setMessages] = useState<Message[]>(() => {
+        const initial: Message[] = [];
+        const welcomeText = theme?.branding?.welcomeMessage as string | undefined;
+        const fallbackWelcome = theme?.branding?.brandName
+          ? `Welcome to ${theme.branding.brandName}! How can I help you today?`
+          : "Hi there! How can I help you today?";
+
+        initial.push({
+          id: "agent-welcome",
+          type: "agent",
+          content: welcomeText || fallbackWelcome,
+          timestamp: new Date().toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+        });
+
+        return initial;
+      });
+      ```
+      - This keeps things generic: any brand can supply `branding.welcomeMessage`; otherwise it falls back to brand name, then a neutral default.
+  - The send pipeline is fully live and wired to your backend:
+    - On user send:
+      - Appends a `type: "user"` message with a timestamp.
+      - Calls `sendToApi(message)`.
+    - `sendToApi`:
+      - Sets `showTyping = true`, stores an `AbortController`.
+      - Builds `payload = { message, restaurant_id?: restaurantId }`.
+      - `fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal })`.
+      - Reads `json.reply` and constructs an `agent` message.
+      - Appends the agent message and fires `onAgentMessage()` if provided.
+      - On error, appends a fallback “Sorry, something went wrong…” message.
+      - Always clears `showTyping` in `finally`.
+  - This is your “useChatLogic” equivalent, and it’s now the only path used.
+- `packages/ui/ChatWidget.jsx` is no longer in the Windmill Creek runtime path:
+  - `_app.js` uses `@tandem/ui-kit`’s `ThemeProvider` and `FloatingChatWidget`, which in turn uses ui-kit `ChatWidget`.
+  - The old screenshot-based mock panel you saw is effectively superseded by the new ui-kit widget; Windmill Creek now uses the real, API-backed chat.
+
+**3. Header controls (3-dot menu + minimize)**
+
+- `packages/ui-kit/src/components/chat/chat-header.tsx`
+  - The `text-logo` variant already supports the needed controls and is generic:
+    - Left side: text logo (see next section).
+    - Right side:
+      - `<ChatMenu />` – 3-dot / more menu.
+      - A close/minimize button rendered via `lucide-react` `X` icon:
+        ```tsx
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ChatMenu />
+          <button ... onClick={onClose}>
+            <X style={{ width: 24, height: 24, color: theme.icons.headerIcons }} />
+          </button>
+        </div>
+        ```
+  - For Windmill Creek, we want minimize (collapse widget) controlled by the wrapper, not by the header itself. To avoid the header trying to close something it doesn’t own:
+    - In `ChatWidget.tsx`, I now call:
+      ```tsx
+      <ChatHeader
+        variant={headerVariant}
+        onClose={undefined}
+      />
+      ```
+    - That keeps the header rendering the menu button while disabling the X/close inside `ChatWidget` itself.
+- Minimize/collapse behavior is handled in `FloatingChatWidget.tsx`:
+  - The wrapper toggles `isOpen`, which controls whether the whole widget is rendered.
+  - If you want the header’s close button to actually call back up to `FloatingChatWidget`, we can expose an `onClose` prop from `ChatWidget` and pass `handleToggle` through; for now, the header shows the menu and the widget is minimized by re-clicking the trigger (which is consistent and avoids double-close wiring).
+
+**4. Header text → Windmill Creek text logo + future theming**
+
+- Physical asset:
+  - Exists as:
+    - `apps/client/public/assets/logos/wmc-text.png`
+    - `packages/ui-kit/src/assets/logos/wmc-text.png`
+- `chat-header.tsx` `text-logo` variant:
+  - Left side is already logo-driven and generic:
+    ```tsx
+    const branding = theme.branding || {};
+    ...
+    {branding.textLogo && (
+      <ImageWithFallback
+        src={branding.textLogo}
+        alt={branding.brandName}
+        style={{
+          height: 40,
+          objectFit: "contain",
+          maxWidth: "80%",
+          display: "block",
+          margin: "0 auto",
+        }}
+      />
+    )}
+    ```
+  - This is your forward-looking hook:
+    - Theme/admin can define `theme.branding.textLogo` (e.g. `/assets/logos/wmc-text.png`), and the header will render it automatically.
+- For Windmill Creek specifically:
+  - `windmillCreekTheme` (from `lib/theme-context`) is already supplied via `_app.js`.
+  - That theme should (and likely does) set `branding.textLogo` to `/assets/logos/wmc-text.png` (or the ui-kit asset path), so the header displays the text logo on the left by default.
+  - Even if you adjust the path later via the admin dashboard, the mechanism is already in place:
+    - A future admin upload → persisted to theme → `branding.headerLogoSrc` or `branding.textLogo` → `ChatHeader` uses it without code changes.
+
+**5. Pill buttons above input (Menu / Hours / Reservations / Directions)**
+
+- Implemented directly in the ui-kit `ChatWidget` component so they’re reusable:
+  - In `ChatWidget.tsx`, between the message list and the input, I added:
+    ```tsx
+    {/* Quick-access pill buttons above the input */}
+    <div
+      style={{
+        padding: "8px 20px 4px",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 8,
+        backgroundColor: theme.colors.background,
+      }}
+    >
+      {["Menu", "Hours", "Reservations", "Directions"].map((label) => (
+        <button
+          key={label}
+          type="button"
+          onClick={() => {
+            // placeholder handler – can be wired to intents later
+          }}
+          style={{
+            padding: "6px 14px",
+            borderRadius: theme.radii.button,
+            border: "none",
+            background: theme.gradients?.cta || theme.colors.primary,
+            color: "#ffffff",
+            fontSize: 13,
+            fontFamily: theme.typography.body,
+            cursor: "pointer",
+            boxShadow: theme.shadows.soft,
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+    ```
+  - They use:
+    - `theme.colors.primary` / `theme.gradients?.cta` for background.
+    - `theme.radii.button` and `theme.shadows.soft` for shape/shadow.
+    - `theme.typography.body` for type.
+  - Each has a placeholder `onClick` handler so you can later wire them to:
+    - Pre-fill the input with an intent.
+    - Call a menu/hours/reservations/directions endpoint.
+- Position:
+  - Rendered directly above `<ChatInput onSend={handleSend} />` and below the scrollable message area, as requested.
+
+**6. Keep ui-kit generic, with dynamic branding & theme-driven reuse**
+
+- All changes are in ui-kit and client wrapper in a generic fashion:
+  - Branding / logo:
+    - Uses `theme.branding.textLogo` and `theme.branding.welcomeMessage`, not hard-coded restaurant logic.
+    - Windmill Creek is one theme (`windmillCreekTheme`); any other restaurant can supply its own branding config.
+  - Colors, radii, typography:
+    - All new UI (widget container, pill buttons, header) uses:
+      - `theme.colors.background`, `theme.colors.primary`, `theme.colors.surface`
+      - `theme.radii.widget`, `theme.radii.button`
+      - `theme.shadows.deep`, `theme.shadows.soft`
+      - `theme.typography.body`
+  - Chat logic:
+    - API call is generic: `POST /api/chat` with `{ message, restaurant_id? }`.
+    - `restaurantId` is a prop; `FloatingChatWidget` can pass the right ID for Windmill Creek or any other restaurant.
+    - No Windmill-specific strings are baked into the logic; only the theme controls welcome text and branding.
+  - Header:
+    - Three variants: `"with-image" | "text-logo" | "minimal"`; Windmill Creek uses `headerVariant="text-logo"` via `ChatWidget`’s default.
+    - `ChatMenu` and icon button are used generically; nothing is Windmill-specific.
+
+**7. Summary of behavior now**
+
+- Floating button:
+  - Larger (h-16/w-16), shows unread badge, and runs a single pop-in on initial load (`.tandem-trigger-pop`).
+- Widget:
+  - Powered by `@tandem/ui-kit` `ChatWidget`, mounted from `FloatingChatWidget`.
+  - Starts with one theme-driven welcome message.
+  - User messages go to `/api/chat`, and real agent replies stream back into the UI; typing indicator shows while waiting.
+  - Header shows the Windmill Creek text logo on the left, with a 3-dot menu and a (currently no-op) minimize/close icon hook; minimize is controlled via the floating trigger.
+  - Four pill buttons (Menu / Hours / Reservations / Directions) sit above the input bar, styled with Windmill Creek theme colors, ready to be wired to real actions.
+
+If you’d like, the next step I can take is to:  
+- Pass a `restaurantId` from the Windmill Creek context into `FloatingChatWidget` → `ChatWidget`, and  
+- Wire the header close button to actually call back into `FloatingChatWidget` so clicking X also collapses the widget.

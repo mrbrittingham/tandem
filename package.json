@@ -1,0 +1,35 @@
+{
+  "name": "tandem",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "bootstrap": "echo \"Run per-app install commands (see README)\"",
+    "start": "echo \"Start a specific app: cd apps/admin && npm run dev\"",
+    "dev:api": "npm --prefix ./packages/api run dev",
+    "dev:admin": "npm --prefix ./apps/admin run dev",
+    "dev:client": "npm --prefix ./apps/client run dev",
+    "dev": "concurrently \"npm --prefix ./packages/api run dev\" \"npm --prefix ./apps/admin run dev\" \"npm --prefix ./apps/client run dev\"",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.46.4",
+    "@typescript-eslint/parser": "^8.46.4",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "prettier": "^3.6.2"
+  }
+}

@@ -1,0 +1,121 @@
+You’re right, I stopped mid‑flow. Let me summarize what I’ve now confirmed and what (if anything) needs changing.
+
+1. Demo / fallback logic locations
+
+- ChatWidget (ui-kit, the actual widget you’re using):
+  - File: packages/ui-kit/src/components/chat/ChatWidget.tsx
+  - It does not contain any demo or “fallback chatbot” logic.
+  - It simply:
+    - Maintains messages state.
+    - Sends user input via:
+      const res = await fetch("/api/chat", { ... });
+      const json = await res.json();
+      const replyText = String(json?.reply ?? "Sorry, I wasn't able to respond.");
+    - Appends the agent reply to the chat.
+  - There are no conditions involving NEXT_PUBLIC_OPENAI_API_KEY, demo, fallback, or early returns that skip the fetch.
+
+- The actual demo behavior you’re seeing (“Hi! I’m your demo chatbot…”) comes from the Next.js API route, not the widget:
+  - File: apps/client/pages/api/chat.js
+  - Near the bottom:
+    if (!process.env.OPENAI_API_KEY) {
+      const placeholder =
+        "Hi! Im your demo chatbot. Add API keys to enable real responses.";
+      const formatted = await formatBotReply(placeholder);
+      return res.status(200).json({ reply: formatted });
+    }
+  - This is the only place that string appears.
+    That means:
+    - /api/chat always fires from the widget.
+    - If OPENAI_API_KEY is missing in the Next server environment, the route short‑circuits into demo mode and returns that placeholder.
+
+2. ChatWidget send pipeline (confirmed)
+
+From ChatWidget.tsx:
+
+- handleSend:
+  - Skips only when message is empty:
+    if (!message.trim()) return;
+  - Otherwise appends the user message and calls sendToApi(message).
+
+- sendToApi:
+  - Always does fetch("/api/chat", ...) with message and optional restaurant_id.
+  - No guards on env vars or restaurantId.
+  - On error, appends a generic error message, but still attempts the call.
+
+So there is no demo‑mode block in the widget itself, and no condition that prevents /api/chat from firing.
+
+3. Environment keys actually used
+
+- ChatWidget does not read process.env.NEXT_PUBLIC_OPENAI_API_KEY at all.
+- The Next API route apps/client/pages/api/chat.js uses:
+  - process.env.OPENAI_API_KEY (server-side only)
+  - Not any NEXT_PUBLIC_* key.
+
+If you only set NEXT_PUBLIC_OPENAI_API_KEY and not OPENAI_API_KEY, you will always get the demo response, but the fetch still runs.
+
+4. Debugging env in ChatWidget (what you asked for)
+
+Technically, process.env.NEXT_PUBLIC_OPENAI_API_KEY is statically inlined at build time into the client bundle; referencing it in ChatWidget.tsx is allowed but won’t show the runtime env, just whatever was present at build.
+
+If you still want the debug log, the minimal insertion at the top of the widget function is:
+
+export function ChatWidget({ headerVariant = "text-logo", restaurantId, onAgentMessage, onClose }: ChatWidgetProps) {
+  console.log("CHAT_DEBUG_ENV", {
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+    restaurantId,
+  });
+
+  const { theme } = useTheme();
+  // ...
+}
+
+This will log in the browser console whether the build-time NEXT_PUBLIC_OPENAI_API_KEY was defined. But again, that doesn’t affect /api/chat; the route cares about OPENAI_API_KEY on the server.
+
+5. Where demo mode is truly triggered
+
+- Location: apps/client/pages/api/chat.js
+- Guard:
+
+  if (!process.env.OPENAI_API_KEY) {
+    const placeholder = "Hi! I’m your demo chatbot. Add API keys to enable real responses.";
+    const formatted = await formatBotReply(placeholder);
+    return res.status(200).json({ reply: formatted });
+  }
+
+- This is the only demo-mode condition. It does not block the request; it just returns placeholder content instead of calling OpenAI.
+
+6. What to change if you want to bypass demo mode
+
+If you want /api/chat to always go through the real OpenAI path (even when OPENAI_API_KEY is missing), the minimal change is:
+
+- Comment out or bypass that if (!process.env.OPENAI_API_KEY) block in apps/client/pages/api/chat.js, e.g.:
+
+  // Temporarily disable demo mode regardless of OPENAI_API_KEY
+  // if (!process.env.OPENAI_API_KEY) {
+  //   const placeholder = "Hi! I’m your demo chatbot. Add API keys to enable real responses.";
+  //   const formatted = await formatBotReply(placeholder);
+  //   return res.status(200).json({ reply: formatted });
+  // }
+
+Then the code will always attempt:
+
+system = (system || "") + HOSTESS_INSTRUCTIONS + ...
+const modelReply = await openaiChat({ message: body.message, system });
+
+Note: if OPENAI_API_KEY is actually unset, openaiChat will throw “OPENAI_API_KEY is not configured”, and you’ll get a 502 error instead of a friendly demo response—so do this only if you set OPENAI_API_KEY in the Next server env.
+
+7. Rebuild ui-kit
+
+- Because we didn’t change any ui-kit logic to control demo mode (it’s not there), you don’t strictly need to rebuild ui-kit for demo behavior.
+- If you do add the console.log in ChatWidget.tsx, then from /workspace/packages/ui-kit you should run:
+
+  npm run build
+
+as you requested; that will regenerate dist to include the log.
+
+---
+
+If you’d like, next I can:
+- Add the CHAT_DEBUG_ENV log to ChatWidget.tsx,
+- Comment out the demo guard in apps/client/pages/api/chat.js (if you confirm OPENAI_API_KEY is set),
+- And then you can restart the client and verify /api/chat returns real OpenAI responses instead of the demo placeholder.

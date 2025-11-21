@@ -1,0 +1,57 @@
+@keyframes tandem-notification-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes tandem-typing-dot {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-2px) scale(1.05);
+    opacity: 1;
+  }
+}
+
+.tandem-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  animation: tandem-typing-dot 1s infinite ease-in-out;
+}
+
+.tandem-typing-dot-delay-1 {
+  animation-delay: 0.15s;
+}
+
+.tandem-typing-dot-delay-2 {
+  animation-delay: 0.3s;
+}
+
+.tandem-widget-enter {
+  animation: tandem-widget-pop 200ms ease-out;
+}
+
+@keyframes tandem-widget-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* One-time attention grab for the floating chat trigger on initial page load */
+.tandem-trigger-pop {
+  animation: tandem-notification-pop 320ms ease-out;
+}

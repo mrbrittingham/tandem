@@ -1,0 +1,31 @@
+Root workspace: /workspace
+
+- package.json
+  - name: "tandem"
+  - private: true
+  - version: "0.0.0"
+  - workspaces: ["apps/*", "packages/*"]
+  - dev scripts include:
+    - "dev:client": "npm --prefix ./apps/client run dev"
+
+apps/client/package.json:
+- name: "tandem-client"
+- private: true
+- dependencies:
+  - "@tandem/ui-kit": "^0.0.0"
+  - "next": "^16.0.3"
+  - "react": "^19.2.0"
+  - "react-dom": "^19.2.0"
+
+packages/ui-kit/package.json:
+- name: "@tandem/ui-kit"
+- version: "0.0.0"
+- private: true
+- main: "dist/index.js"
+- types: "dist/index.d.ts"
+- peerDependencies:
+  - react: "^19.2.0"
+- scripts:
+  - build: "tsc -p tsconfig.json"
+
+Conclusion: workspace wiring at the root is correct; apps and packages are part of the same npm workspace and @tandem/ui-kit is a local workspace dependency of apps/client.

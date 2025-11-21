@@ -1,0 +1,530 @@
+Here are the requested findings, diffs, and revert plan in plain text.
+
+========================================
+1. Files and changes identified
+========================================
+
+Tracked files with changes (from git):
+- apps/client/pages/restaurant/[slug].js
+- packages/ui/ChatWidget.jsx
+
+Untracked ui-kit sources (not yet in git, so no git diff available):
+- packages/ui-kit/src/components/chat/ChatWidget.tsx
+- packages/ui-kit/src/components/chat/chat-header.tsx
+- packages/ui-kit/src/components/chat/ChatTrigger.tsx (exists, looks clean)
+
+Other untracked or context files in root and elsewhere are not directly part of the widget/page logic.
+
+----------------------------------------
+A. apps/client/pages/restaurant/[slug].js
+----------------------------------------
+
+Git diff vs HEAD (clean state):
+
+- Import line changed:
+  - BEFORE:
+    import { ChatWidget } from "ui";
+  - AFTER:
+    import { ChatWidget, ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit";
+
+- Page layout wrapper changed from fullscreen hero <section> to top-of-page logo <div>:
+
+  - BEFORE (hero section with screenshot background):
+
+    return (
+      <div
+        style={{
+          fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto',
+        }}
+      >
+        <section
+          style={{
+            width: "100%",
+            height: "100vh",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url(${heroSrc})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+        </section>
+
+        {/* Chat widget only (anchored bottom-right) */}
+        <ChatWidget restaurantId={restaurant?.id || slug} />
+      </div>
+    );
+
+  - AFTER (text logo block + bare ChatWidget):
+
+    return (
+      <div
+        style={{
+          fontFamily:
+            'Inter, system-ui, -apple-system, "Segoe UI", Roboto',
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            padding: "24px 0",
+            display: "flex",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            paddingLeft: 24,
+            backgroundColor: "white",
+          }}
+        >
+          <img
+            src="/assets/logos/wmc-text.png"
+            alt="Windmill Creek"
+            style={{ height: 48, objectFit: "contain" }}
+          />
+        </div>
+
+        <ChatWidget />
+      </div>
+    );
+
+Key effects from these changes:
+- **White wall / missing hero screenshot**: caused by replacing the fullscreen hero <section> (with backgroundImage based on heroSrc) with a simple white-background <div> and logo image.
+- **Top-of-page text logo**: caused directly by the injected <img src="/assets/logos/wmc-text.png" ... /> block.
+- **RestaurantId prop removal**: the widget previously received restaurantId={restaurant?.id || slug}; now it’s rendered as <ChatWidget /> with no props, which may change behavior but not the white-wall layout.
+- **Switch from ui package to @tandem/ui-kit**: the import changed from "ui" to "@tandem/ui-kit"; this switched the widget implementation from packages/ui/ChatWidget.jsx to the ui-kit widget implementation.
+
+----------------------------------------
+B. packages/ui/ChatWidget.jsx
+----------------------------------------
+
+Git diff vs HEAD shows large functional enhancements to the legacy embed widget (not currently used by apps/client via @tandem/ui-kit, but useful context):
+
+- New imports:
+  - Added: import TypingIndicator from "./TypingIndicator";
+
+- New state and refs:
+  - Added expanded, soundEnabled, showMenu, expandedOnceRef, priorAssistantRepliesRef, and derived panel sizing.
+
+- New behavior:
+  - WebAudio-based "beep" sound cues (playBeep).
+  - One-time expansion behavior on first user message (expandedOnceRef).
+  - Smarter assistant reply handling: menu-dump suppression, reservation button, duplicate-response suppression.
+  - Panel width/height and animation changes (panelWidth, basePanelHeight, expandedPanelHeight, panelMaxHeight, updated transitions).
+  - New hero placeholder inside the panel and a header with gear menu, sound toggle, and "Toggle expand".
+  - Typing indicator overlay and reserved space.
+  - Footer with "POWERED BY TANDEM".
+
+These changes:
+- **Do NOT affect the Windmill Creek page through @tandem/ui-kit**, because apps/client now imports ChatWidget from "@tandem/ui-kit" instead of "ui".
+- They would only affect other contexts that explicitly import from packages/ui.
+
+----------------------------------------
+C. packages/ui-kit/src/components/chat/ChatWidget.tsx
+----------------------------------------
+
+This file is **untracked** in git at the moment (git diff HEAD -- ... yields nothing and git ls-files shows no entries under packages/ui-kit/src/components/chat). However, the current contents clearly include our debug and mobile/docking changes.
+
+Current key characteristics:
+
+- Debug logging:
+  - Top-level log:
+    // Responsive behavior: adjusts widget sizing/positioning for desktop vs mobile.
+    console.log("🔥 USING ChatWidget.TSX SOURCE FILE (timestamp: " + Date.now() + ")");
+  - In-function log:
+    console.log("=== ACTIVE CHATWIDGET SOURCE ===", Date.now());
+
+- Props:
+  - export interface ChatWidgetProps { }
+  - export function ChatWidget({}: ChatWidgetProps) { ... }
+
+- Container layout logic (open-state panel):
+
+  {isOpen && (
+    <div
+      className="bg-white flex flex-col overflow-hidden"
+      style={{
+        outline: "3px solid magenta",
+        ...(isMobile
+          ? {
+              right: 0,
+              left: 0,
+              bottom: 0,
+              width: "100%",
+              maxWidth: "100%",
+              height: "calc(100vh - 56px)",
+              maxHeight: "calc(100vh - 56px)",
+              borderRadius: 0,
+            }
+          : {}),
+        position: "fixed",
+        zIndex: 99999,
+        borderRadius: "var(--tandem-widget-radius)",
+        boxShadow: theme.shadows.deep,
+        overflow: "hidden",
+        right: isMobile ? 0 : 24,
+        bottom: isMobile ? 0 : 24,
+        width: isMobile ? "100%" : 340,
+        maxWidth: "100%",
+        height: isMobile
+          ? "calc(100vh - 56px)"
+          : "min(540px, calc(100vh - 48px))",
+        maxHeight: isMobile
+          ? "calc(100vh - 56px)"
+          : "calc(100vh - 48px)",
+      }}
+    >
+      <ChatHeader onClose={() => setIsOpen(false)} />
+      ...
+    </div>
+  )}
+
+- Behavior:
+  - isMobile determined by window.innerWidth <= 480.
+  - On mobile: widget stretches full-width across bottom, height ~ full viewport minus 56px, no border radius.
+  - On desktop: 340px width, fixed position bottom-right, min(540px, viewport-constrained) height.
+
+Impact of these changes:
+- **Chat widget stretching / ignoring Figma design**: this mobile/full-screen logic and the fixed 340px width + 56px header structure differs from the original Figma hero+header design. It makes the widget more like a full-screen dock on mobile and a compact panel on desktop.
+- **Magenta outline** makes the panel look obviously "debuggy".
+- **Header variants and hero-image logic have been removed**: ChatHeader is now a minimal logo-only header, not the hero-image/text-logo/minimal variant system from the original UI Kit.
+
+----------------------------------------
+D. packages/ui-kit/src/components/chat/chat-header.tsx
+----------------------------------------
+
+Current content (untracked; debugged version):
+
+- Minimal-only header implementation:
+
+  // Minimal header: solid background, left-aligned text logo, right-aligned close button.
+  import React from "react";
+  import { useTheme } from "../../lib/theme-context";
+
+  interface ChatHeaderProps {
+    onClose?: () => void;
+  }
+
+  export function ChatHeader({ onClose }: ChatHeaderProps) {
+    const { theme } = useTheme();
+    const isMobile =
+      typeof window !== "undefined" && window.innerWidth <= 480;
+
+    return (
+      <div
+        className="tandem-chat-header"
+        style={{
+          width: "100%",
+          height: isMobile ? 56 : 100,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 16px",
+          backgroundColor: theme.colors.primary,
+          color: "#fff",
+        }}
+      >
+        <img
+          src={theme.branding.textLogo}
+          alt={theme.branding.brandName}
+          style={{
+            height: isMobile ? 32 : 48,
+            maxWidth: isMobile ? "50%" : "70%",
+            objectFit: "contain",
+          }}
+        />
+
+        {/* Close button stays as-is */}
+        <button
+          onClick={onClose}
+          style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "#fff",
+            fontSize: isMobile ? 20 : 22,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+Missing pieces relative to original UI Kit:
+- No HeaderVariant type ("with-image" | "text-logo" | "minimal").
+- No heroImageSrc, flowerLogo, gradient overlay, or variant-based conditional rendering.
+- No hero-image / fondue background behind header.
+
+Effects:
+- **Overwritten UI-kit theme props or variant logic**: yes — the variant logic previously controlled whether the header used a hero image, text logo, or minimal style. Now there is only one header style driven by textLogo and theme.colors.primary.
+
+----------------------------------------
+E. packages/ui-kit/src/components/chat/ChatTrigger.tsx
+----------------------------------------
+
+Current state:
+- Looks like a clean, Figma-aligned trigger button:
+  - Fixed circular button at bottom-right.
+  - Uses theme.colors.primary and theme.shadows.deep.
+  - Contains an inline SVG headset icon.
+- No recent debug or layout changes were introduced here in the current workspace snapshot.
+
+----------------------------------------
+F. Any injected top-of-page logo code / removed hero block
+----------------------------------------
+
+- Injected top-of-page logo code:
+  - Located solely in apps/client/pages/restaurant/[slug].js as the new <div> + <img> block described above.
+
+- Removed hero-image block from [slug].js:
+  - The entire <section> with backgroundImage: `url(${heroSrc})` and absolute-positioned inner <div> was deleted and replaced by the logo div.
+
+- Mobile/docking/position changes inside ChatWidget:
+  - Implemented entirely in packages/ui-kit/src/components/chat/ChatWidget.tsx, via the isMobile and style logic as shown.
+
+
+========================================
+2. Direct causes of visible issues
+========================================
+
+- **Windmill Creek page renders a white wall / screenshot gone**:
+  - Caused by [slug].js replacing the hero <section> (full-screen screenshot background) with a white-background logo <div>.
+  - The original heroSrc-based background is no longer referenced or rendered.
+
+- **Top-of-page text logo appears**:
+  - Directly from the injected <img src="/assets/logos/wmc-text.png" ... /> in [slug].js.
+
+- **Hero screenshot background disappears**:
+  - Because the hero <section> and inner <div> with backgroundImage: `url(${heroSrc})` were removed from [slug].js.
+
+- **Chat widget stretches / ignores Figma design**:
+  - From the updated layout logic in ui-kit ChatWidget.tsx:
+    - outline + full-width bottom dock on mobile.
+    - 340px fixed width and full viewport-constrained height on desktop.
+  - From the simplified chat-header.tsx, which removed the hero-image/header variants and replaced them with a single text-logo header.
+
+- **Overwritten UI-kit theme props / variant logic**:
+  - chat-header.tsx no longer respects HeaderVariant or heroImage / flowerLogo.
+  - ChatWidget no longer accepts headerVariant or passes it through; it always uses the minimal text-logo header.
+
+
+========================================
+3. "Correct, original, clean" versions (conceptual)
+========================================
+
+Note: because ui-kit sources are currently untracked here, "original" refers to the behavior implied by the existing compiled dist files and earlier patches, not a local git snapshot.
+
+A. [slug].js – original clean version
+
+Based on the git diff, the clean version looked like:
+
+- Imports:
+  import React, { useEffect, useState } from "react";
+  import { ChatWidget } from "ui";
+  import { useRouter } from "next/router";
+
+- Layout:
+  - Outer <div> with fontFamily.
+  - Inner <section> hero with:
+    - width: "100%", height: "100vh", position: "relative", overflow: "hidden".
+    - inner absolutely-positioned <div> with backgroundImage: `url(${heroSrc})`, backgroundSize: "cover", backgroundPosition: "center".
+  - ChatWidget rendered under the <section>, anchored visually using its own internal styles.
+
+This produced:
+- Full-screen hero screenshot background.
+- No extra text logo at the top.
+- ChatWidget based on the legacy packages/ui implementation, anchored bottom-right.
+
+B. ChatWidget implementation matching Figma UI Kit
+
+From the earlier dist version (and existing JS in dist/components/chat/ChatWidget.js) the clean Figma-aligned implementation likely had:
+- Props:
+  - function ChatWidget({ headerVariant = "with-image" }).
+- Container styles:
+  - position: fixed;
+  - right: 24;
+  - bottom: 100;
+  - width ~360;
+  - height ~540;
+  - maxWidth: "100%";
+  - borderRadius: "var(--tandem-widget-radius)";
+  - boxShadow: theme.shadows.deep;
+- Header variants:
+  - headerVariant passed into <ChatHeader variant={headerVariant} ... />.
+  - ChatHeader implemented the hero-image, text-logo, and minimal variants based on theme.branding and variant selection.
+
+C. ChatTrigger button style from UI Kit
+
+Current ChatTrigger.tsx matches the expected original:
+- Fixed circular button at bottom-right (right: 24, bottom: 24).
+- size 64 (diameter), border-radius 50%.
+- backgroundColor: theme.colors.primary.
+- boxShadow: theme.shadows.deep.
+- Animated scale on hover.
+- Inline SVG headset icon sized 28x28.
+
+D. Page layout structure from working build
+
+- Top-level: <div> with Inter/system font.
+- Hero: <section> full-viewport screenshot background.
+- Chat widget: appears as a floating panel anchored bottom-right, overlapping the hero but not altering page layout.
+
+
+========================================
+4. Revert Plan (do NOT apply yet)
+========================================
+
+A. What to restore in [slug].js
+
+- Remove page-level rogue text logo:
+  - Delete the entire top-of-page <div> that renders the /assets/logos/wmc-text.png image.
+
+- Restore fullscreen screenshot background:
+  - Re-introduce the original <section> with:
+    - width: "100%", height: "100vh", position: "relative", overflow: "hidden".
+    - inner <div> with absolute positioning and backgroundImage: `url(${heroSrc})`, backgroundSize: "cover", backgroundPosition: "center".
+
+- Restore spacing/layout wrappers:
+  - Ensure outer <div> still wraps hero + chat.
+  - Keep fontFamily on the outer <div>.
+
+- Decide import source for ChatWidget:
+  - Either:
+    - revert to import { ChatWidget } from "ui";
+  - Or:
+    - keep using @tandem/ui-kit once ui-kit is restored to Figma-accurate behavior.
+
+B. What to restore in ChatWidget (ui-kit)
+
+- Correct header variant logic:
+  - Reintroduce HeaderVariant type ("with-image" | "text-logo" | "minimal").
+  - Restore ChatHeader implementation with:
+    - hero-image variant using theme.branding.heroImage and gradient overlay.
+    - text-logo variant using theme.branding.textLogo.
+    - minimal variant using theme.colors.primary and text title only.
+  - Restore ChatWidget props to accept headerVariant and pass it to ChatHeader.
+
+- Correct container dimensions from Figma:
+  - Desktop: width ~360px, height ~540px, bottom offset ~100px, right offset 24px.
+  - Mobile: likely retains a right/bottom anchored panel, but not necessarily full-screen; follow Figma’s mobile spec.
+
+- Correct border radius:
+  - Use var(--tandem-widget-radius) consistently (no forced radius 0 on mobile unless Figma specifies).
+
+- Correct theme colors:
+  - Ensure backgroundColor in header and panel backgrounds match theme.colors.primary/secondary and hero backgrounds from Figma.
+
+- Correct mobile behavior:
+  - Remove or tame the full-screen docking behavior:
+    - Widget should not automatically stretch full-screen unless that’s a chosen variant.
+    - Use height constraints and responsive maxHeight instead of full viewport docking.
+
+- Remove debug instrumentation:
+  - Drop console.log("🔥 USING ChatWidget.TSX SOURCE FILE ...").
+  - Drop console.log("=== ACTIVE CHATWIDGET SOURCE ===", Date.now());
+  - Remove outline: "3px solid magenta" from the panel style.
+
+C. What to restore in pages/imports
+
+- Ensure apps/client uses ONLY @tandem/ui-kit widget **or** ONLY the legacy ui widget, but not a mix.
+  - If we standardize on ui-kit:
+    - Confirm apps/client/pages/_app.js wraps in ThemeProvider from @tandem/ui-kit (already done).
+    - Ensure pages import ChatWidget only from "@tandem/ui-kit".
+  - If we temporarily return to legacy ui:
+    - Switch [slug].js back to import { ChatWidget } from "ui" while ui-kit is being refactored.
+
+- Ensure packages/ui/ChatWidget.jsx is not accidentally used by ui-kit:
+  - It currently isn’t — the ui-kit exports come from packages/ui-kit/dist, not packages/ui.
+  - Just confirm no imports from "packages/ui/ChatWidget.jsx" or "ui" remain in apps/client once we commit to ui-kit.
+
+D. Confirm where magenta outline + debug logs ended up
+
+Files currently containing debug markers:
+
+- packages/ui-kit/src/components/chat/ChatWidget.tsx
+  - console.log("🔥 USING ChatWidget.TSX SOURCE FILE (timestamp: " + Date.now() + ")");
+  - console.log("=== ACTIVE CHATWIDGET SOURCE ===", Date.now());
+  - style={{ outline: "3px solid magenta", ... }} on the open-state panel.
+
+- packages/ui-kit/dist/components/chat/ChatWidget.js
+  - Still contains the older debug log and red background from earlier (not yet updated to magenta outline because ui-kit hasn’t been rebuilt in this snapshot).
+
+No other ui-kit chat components currently contain debug logs or outlines.
+
+
+========================================
+5. Restore options to choose from (do NOT run yet)
+========================================
+
+Please choose which option to run next:
+
+- Option R1 – Fully revert [slug].js to the last clean hero-image screenshot version.
+- Option R2 – Fully revert ChatWidget to the Figma-accurate variant system (with hero-image, text-logo, minimal variants).
+- Option R3 – Rebuild the widget from the Figma UI Kit exactly (fresh implementation, minimal legacy baggage).
+- Option R4 – Partial revert (only remove the broken edits such as the top-of-page logo, full-screen docking, and debug markers).
+- Option R5 – Keep the functional parts (API behavior, etc.), rebuild the header and container layout cleanly to match design.
+- Option R6 – Nuke all debug changes & rebuild ui-kit clean (recreate dist from a clean src and remove temporary logs/outlines).
+- Option R7 – I will choose manually per-file (we’ll walk through changes file by file and selectively restore).
+
+No revert actions have been applied yet — awaiting your choice.
+
+
+========================================
+6. Current git status / safety
+========================================
+
+git status output:
+- On branch main.
+- Branch is ahead of origin/main by 4 commits.
+- Changes not staged for commit:
+  - modified: .agent-instructions.md
+  - modified: apps/client/package.json
+  - modified: apps/client/pages/api/chat.js
+  - modified: apps/client/pages/restaurant/[slug].js
+  - modified: package-lock.json
+  - modified: package.json
+  - modified: packages/api/index.js
+  - modified: packages/ui/ChatWidget.jsx
+- Untracked files:
+  - .stfolder/
+  - .stignore
+  - PROJECT_CONTEXT.md
+  - agent-response.txt
+  - apps/client/pages/_app.js
+  - apps/client/public/assets/
+  - copilot-instructions.md
+  - laptop_filelist.txt
+  - missing_files.txt
+  - packages/ui-kit/
+  - packages/ui/TypingIndicator.jsx
+  - tsconfig.json
+  - ui-kit-chat-patches.txt
+  - work_filelist.txt
+
+git diff --name-only vs HEAD:
+- .agent-instructions.md
+- apps/client/package.json
+- apps/client/pages/api/chat.js
+- apps/client/pages/restaurant/[slug].js
+- package-lock.json
+- package.json
+- packages/api/index.js
+- packages/ui/ChatWidget.jsx
+
+Branches:
+- You are on branch: main.
+
+Safety assessment:
+- Because there are both tracked modifications and many untracked files (including the entire packages/ui-kit/src tree), a bulk git restore must be applied carefully.
+- Before any automated revert, we should either:
+  - Stage only the files we intend to keep, or
+  - Use targeted restores (e.g., git restore apps/client/pages/restaurant/[slug].js) while being aware that untracked ui-kit/src files will not be reverted by git.
+- The current state is **revert-able**, but to avoid losing good work, we should choose a specific option (R1–R7) and apply changes in a focused way.

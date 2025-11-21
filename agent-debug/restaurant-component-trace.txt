@@ -1,0 +1,45 @@
+Restaurant page component trace (/apps/client/pages/restaurant/[slug].js)
+
+1) Entry file
+- /workspace/apps/client/pages/restaurant/[slug].js
+  - Imports:
+    - React, useEffect, useState from "react".
+    - { ChatWidget, ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit".
+    - { useRouter } from "next/router".
+  - Exports default function RestaurantPage that:
+    - Uses useRouter to get slug.
+    - Fetches restaurant, menus, faqs, and heroSrc via Next.js API routes.
+    - Renders loading / error states.
+    - Finally returns JSX wrapped in <ThemeProvider defaultTheme={windmillCreekTheme}> containing:
+      - A full-screen hero section.
+      - A single ChatWidget instance: `<ChatWidget restaurantId={restaurant?.id || slug} />`.
+  - No other local imports, wrappers, or re-exports.
+
+2) Upstream providers / wrappers
+- /workspace/apps/client/pages/_app.js
+  - Imports { ThemeProvider, windmillCreekTheme } from "@tandem/ui-kit".
+  - Wraps all pages in a ui-kit ThemeProvider:
+    - `<ThemeProvider theme={windmillCreekTheme}> <Component {...pageProps} /> </ThemeProvider>`.
+- There is no reference to the legacy `ui` package or its ChatWidget anywhere in _app.js.
+
+3) Other routes for comparison
+- /workspace/apps/client/pages/index.js
+- /workspace/apps/client/pages/chat.js
+- /workspace/apps/client/pages/demo/windmill-creek.js
+  - All now import { ChatWidget } from "@tandem/ui-kit" as well (not from "ui").
+
+4) Search for wrappers using legacy ui ChatWidget
+- Grep across apps/client with includeIgnoredFiles for patterns:
+  - `import { ChatWidget } from "ui"` / 'ui'
+  - `export { ChatWidget } from "ui"` / 'ui'
+- Result: **no matches found**.
+- This indicates there is no wrapper or HOC re-exporting ChatWidget from the legacy packages/ui anywhere under apps/client.
+
+5) Component tree summary for restaurant route
+- _app.js: provides ui-kit ThemeProvider to all pages.
+- [slug].js: imports ChatWidget directly from @tandem/ui-kit and renders it inside a (redundant but harmless) nested ThemeProvider.
+- The ui-kit ChatWidget implementation imported is the Figma-style widget from dist/components/chat/ChatWidget.js, which itself uses ChatTrigger and Figma header/bubble components.
+
+Conclusion:
+- There is no evidence of any wrapper, layout, or HOC overriding the restaurant page’s ChatWidget with the legacy packages/ui ChatWidget.
+- The only ChatWidget reachable from [slug].js is the one exported by @tandem/ui-kit; the compiled bundle confirms this.

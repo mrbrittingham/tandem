@@ -1,0 +1,9 @@
+Key code changes:
+- Refit packages/ui-kit/src/lib/themes/windmill-creek.(ts|js) to final Windmill Creek tokens (colors, shadows, radii, typography, icons).
+- Updated ChatWidget container (400x650, theme background, widget radius, deep shadow, themed footer) and removed inline floating trigger; widget now assumes external ChatTrigger opens it.
+- Rebuilt ChatTrigger as themed floating widget button: 64x64, accent background, primary headset stroke, deep shadow, full radius, notification bubble with pop-in animation hook.
+- Updated UserBubble and AgentBubble to use theme.radii.bubble, themed text colors, and soft shadows.
+- Updated CtaPillButton to use gradient primary→secondary, full radius, Lilita One font, and rich shadow.
+- Updated TypingIndicator to use primary avatar, highlight-colored dots, and themed caption color.
+- Kept ChatHeader variants but lightened with-image variant by removing heavy dark gradient overlay.
+- Synced compiled JS counterparts where present via ui-kit tsc build.

@@ -1,0 +1,27 @@
+﻿{
+  "name": "Tandem Dev",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+
+  // This makes /workspace the root inside the container
+  "workspaceFolder": "/workspace",
+
+  // This binds your Windows folder → /workspace
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+
+  // Install node_modules once at container creation
+  "postCreateCommand": "npm install",
+
+  // 🚀 The important part: auto-run your startup script
+  "postAttachCommand": "bash /workspace/tandem-dev-start.sh",
+
+  "forwardPorts": [3000, 3001, 4000],
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true
+      },
+      "extensions": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
+    }
+  }
+}

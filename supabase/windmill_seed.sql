@@ -1,0 +1,2 @@
+-- Seed moved to /scripts/seed/windmill_seed.sql
+-- Please use that file instead. This file is kept for compatibility.

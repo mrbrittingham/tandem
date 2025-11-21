@@ -1,0 +1,6 @@
+Suggested follow-up actions:
+- Wire ChatTrigger into the client app shell (e.g., _app.js or a layout) so there is exactly one floating widget instance mounting the ChatWidget. Current code path relies on consumer to manage ChatTrigger + ChatWidget open/close state.
+- Add global CSS keyframes for `tandem-notification-pop` and `typing-dot` animations in the ui-kit stylesheet so the notification bubble and typing dots animate per spec.
+- Confirm runtime fonts (Lilita One and Inter) are loaded via @font-face or external provider in the host app so typography matches Figma exactly.
+- Optionally add visual regression or storybook stories for ChatWidget, ChatTrigger, bubbles, CTA button, and TypingIndicator to lock in layout, spacing, and theming.
+- Validate in multiple viewport sizes to ensure fixed 400x650 widget positioning behaves correctly on small screens (may need responsive tweaks based on product decisions).
