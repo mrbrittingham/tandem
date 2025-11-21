@@ -235,12 +235,21 @@ export default async function handler(req, res) {
         for (const menu of demo.menus) {
           if (!menu.items) continue;
           for (const item of menu.items) {
+<<<<<<< HEAD
             // Compare message text to menu item names
             if (
               r.toLowerCase() === item.name.toLowerCase() ||
               r.toLowerCase().includes(item.name.toLowerCase())
             ) {
               return formatMenuItem(item);
+=======
+            if (
+              item &&
+              item.name &&
+              item.name.toLowerCase() === r.toLowerCase()
+            ) {
+              return replaceEmDashes(formatMenuItem(item));
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
             }
           }
         }
@@ -274,6 +283,7 @@ export default async function handler(req, res) {
       return trimLines(r).replace(/—|--/g, ":");
     }
 
+<<<<<<< HEAD
     // DEMO MODE DISABLED
     // if (!process.env.OPENAI_API_KEY) {
     //   const placeholder =
@@ -281,6 +291,14 @@ export default async function handler(req, res) {
     //   const formatted = await formatBotReply(placeholder);
     //   return res.status(200).json({ reply: formatted });
     // }
+=======
+    if (!process.env.OPENAI_API_KEY) {
+      const placeholder =
+        "Hi! I\u2019m your demo chatbot. Add API keys to enable real responses.";
+      const formatted = await formatBotReply(placeholder);
+      return res.status(200).json({ reply: formatted });
+    }
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
 
     // Ask OpenAI (append hostess + wine pairing guidance)
     system = (system || "") + HOSTESS_INSTRUCTIONS + WINE_PAIRING_INSTRUCTIONS + WINE_PAIRING_RESPONSE_STYLE;

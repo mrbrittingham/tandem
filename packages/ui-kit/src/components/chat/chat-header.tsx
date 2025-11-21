@@ -1,5 +1,9 @@
 import React from "react";
 import { useTheme } from "../../lib/theme-context";
+<<<<<<< HEAD
+=======
+import { X } from "lucide-react";
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { ChatMenu } from "./chat-menu";
 
@@ -8,23 +12,29 @@ export type HeaderVariant = "with-image" | "text-logo" | "minimal";
 export interface ChatHeaderProps {
   variant?: HeaderVariant;
   onClose?: () => void;
+<<<<<<< HEAD
   onMinimize?: () => void;
   onClearConversation?: () => void;
   onToggleNotifications?: () => void;
   onToggleSounds?: () => void;
   notificationsEnabled?: boolean;
   soundEnabled?: boolean;
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
 }
 
 export function ChatHeader({
   variant = "with-image",
   onClose,
+<<<<<<< HEAD
   onMinimize,
   onClearConversation,
   onToggleNotifications,
   onToggleSounds,
   notificationsEnabled = true,
   soundEnabled = true,
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
 }: ChatHeaderProps) {
   const { theme } = useTheme();
   const branding = theme.branding || {};
@@ -154,10 +164,13 @@ export function ChatHeader({
 
   // Variant: Text Logo Only (Windmill Creek style)
   if (variant === "text-logo") {
+<<<<<<< HEAD
     const textLogoSrc = branding.textLogo
       ? `/assets/logos/${branding.textLogo}`
       : undefined;
 
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     return (
       <div
         style={{
@@ -180,6 +193,7 @@ export function ChatHeader({
             minWidth: 0,
           }}
         >
+<<<<<<< HEAD
           {textLogoSrc && (
             <ImageWithFallback
               src={textLogoSrc}
@@ -192,6 +206,19 @@ export function ChatHeader({
 				objectFit: "contain",
 				display: "block",
 			}}
+=======
+          {branding.textLogo && (
+            <ImageWithFallback
+              src={branding.textLogo}
+              alt={branding.brandName}
+              style={{
+                height: 40,
+                objectFit: "contain",
+                maxWidth: "80%",
+                display: "block",
+                margin: "0 auto",
+              }}
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
             />
           )}
         </div>
@@ -203,6 +230,7 @@ export function ChatHeader({
             gap: 8,
           }}
         >
+<<<<<<< HEAD
           <ChatMenu
             onMinimize={onMinimize}
             onClearConversation={onClearConversation}
@@ -215,6 +243,12 @@ export function ChatHeader({
           <button
             onClick={onMinimize || onClose}
             aria-label="Minimize chat"
+=======
+          <ChatMenu />
+
+          <button
+            onClick={onClose}
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
             style={{
               padding: 8,
               borderRadius: theme.radii.button,
@@ -226,6 +260,7 @@ export function ChatHeader({
               cursor: "pointer",
             }}
           >
+<<<<<<< HEAD
             <span
               style={{
                 fontSize: 20,
@@ -236,6 +271,15 @@ export function ChatHeader({
             >
               _
             </span>
+=======
+            <X
+              style={{
+                width: 24,
+                height: 24,
+                color: theme.icons.headerIcons,
+              }}
+            />
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
           </button>
         </div>
       </div>

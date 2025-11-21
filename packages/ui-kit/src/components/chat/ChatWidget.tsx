@@ -30,18 +30,31 @@ export function ChatWidget({ headerVariant = "text-logo", restaurantId, onAgentM
       ? `Welcome to ${theme.branding.brandName}! How can I help you today?`
       : "Hi there! How can I help you today?";
 
+<<<<<<< HEAD
     // Avoid generating timestamps during SSR to prevent hydration mismatches.
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     initial.push({
       id: "agent-welcome",
       type: "agent",
       content: welcomeText || fallbackWelcome,
+<<<<<<< HEAD
+=======
+      timestamp: new Date().toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     });
 
     return initial;
   });
   const [showTyping, setShowTyping] = useState(false);
+<<<<<<< HEAD
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -115,6 +128,7 @@ export function ChatWidget({ headerVariant = "text-logo", restaurantId, onAgentM
     void sendToApi(message);
   };
 
+<<<<<<< HEAD
   const handleClearConversation = () => {
     const welcomeText = (theme as any)?.branding?.welcomeMessage as string | undefined;
     const fallbackWelcome = theme?.branding?.brandName
@@ -144,6 +158,8 @@ export function ChatWidget({ headerVariant = "text-logo", restaurantId, onAgentM
     }
   };
 
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
   return (
     <div
       style={{
@@ -154,6 +170,10 @@ export function ChatWidget({ headerVariant = "text-logo", restaurantId, onAgentM
         backgroundColor: theme.colors.background,
         borderRadius: theme.radii.widget,
         boxShadow: theme.shadows.deep,
+<<<<<<< HEAD
+=======
+        border: "2px solid red",
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
         overflow: "hidden",
         fontFamily: theme.typography.body,
       }}
@@ -161,12 +181,15 @@ export function ChatWidget({ headerVariant = "text-logo", restaurantId, onAgentM
       <ChatHeader
         variant={headerVariant}
         onClose={onClose}
+<<<<<<< HEAD
         onMinimize={handleMinimize}
         onClearConversation={handleClearConversation}
         onToggleNotifications={handleToggleNotifications}
         onToggleSounds={handleToggleSounds}
         notificationsEnabled={notificationsEnabled}
         soundEnabled={soundEnabled}
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
       />
 
       <div

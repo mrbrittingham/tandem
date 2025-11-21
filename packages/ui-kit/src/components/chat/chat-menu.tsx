@@ -8,6 +8,7 @@ import {
   VolumeX,
 } from "lucide-react";
 
+<<<<<<< HEAD
 interface ChatMenuProps {
   onMinimize?: () => void;
   onClearConversation?: () => void;
@@ -26,35 +27,56 @@ export function ChatMenu({
   soundEnabled = true,
 }: ChatMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+=======
+export function ChatMenu() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
 
   const menuItems = [
     {
       icon: BellOff,
       label: "Turn off notifications",
+<<<<<<< HEAD
       action: () => {
         if (onToggleNotifications) onToggleNotifications();
       },
+=======
+      action: () => console.log("Notifications off"),
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     },
     {
       icon: MessageSquareX,
       label: "Clear conversation",
+<<<<<<< HEAD
       action: () => {
         if (onClearConversation) onClearConversation();
       },
+=======
+      action: () => console.log("Clear conversation"),
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     },
     {
       icon: Minimize2,
       label: "Minimize widget",
+<<<<<<< HEAD
       action: () => {
         if (onMinimize) onMinimize();
       },
+=======
+      action: () => console.log("Minimize widget"),
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     },
     {
       icon: soundEnabled ? VolumeX : Volume2,
       label: soundEnabled ? "Turn off sounds" : "Turn on sounds",
+<<<<<<< HEAD
       action: () => {
         if (onToggleSounds) onToggleSounds();
       },
+=======
+      action: () => setSoundEnabled(!soundEnabled),
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     },
   ];
 

@@ -22,10 +22,13 @@ export function FloatingChatWidget({ restaurantId }: FloatingChatWidgetProps) {
     });
   }, []);
 
+<<<<<<< HEAD
   const handleClose = useCallback(() => {
     setIsOpen(false);
   }, []);
 
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
   // Placeholder for wiring to real message events later.
   const handleNewMessage = useCallback(() => {
     setUnreadCount((count) => (isOpen ? count : count + 1));
@@ -60,7 +63,10 @@ export function FloatingChatWidget({ restaurantId }: FloatingChatWidgetProps) {
           <ChatWidget
             restaurantId={restaurantId}
             onAgentMessage={handleNewMessage}
+<<<<<<< HEAD
             onClose={handleClose}
+=======
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
           />
         </div>
       )}

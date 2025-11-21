@@ -1,4 +1,8 @@
 import React from "react";
+<<<<<<< HEAD
+=======
+import { ChatWidget } from "@tandem/ui-kit";
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
 
 export default function WindmillDemo() {
   const id = "windmill-creek";
@@ -14,6 +18,13 @@ export default function WindmillDemo() {
           filter: "brightness(0.9)",
         }}
       />
+<<<<<<< HEAD
+=======
+
+      <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 9999 }}>
+        <ChatWidget restaurantId={id} />
+      </div>
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     </div>
   );
 }

@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+<<<<<<< HEAD
 	turbopack: {},
 	// Still let Next transpile the workspace package
 	transpilePackages: ["@tandem/ui-kit"],
@@ -15,6 +16,9 @@ const nextConfig = {
 		};
 		return config;
 	},
+=======
+	transpilePackages: ["@tandem/ui-kit"],
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
 };
 
 module.exports = nextConfig;

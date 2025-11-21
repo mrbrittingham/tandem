@@ -5,8 +5,14 @@ export const windmillCreekTheme = {
     brandName: "Windmill Creek",
     heroImage: null,
     flowerLogo: null,
+<<<<<<< HEAD
     // Windmill Creek text logo filename; ui surfaces prepend /assets/logos/.
     textLogo: "wmc-text.png",
+=======
+    // Hard-coded path for Windmill Creek text logo; later this can
+    // be driven from admin-configured theme assets.
+    textLogo: "/assets/logos/wmc-text.png",
+>>>>>>> 6242fe6fdcb3c4ea7b51c4db97d13ad68c94574a
     chatTitle: "Windmill Creek Chat",
   },
   colors: {
